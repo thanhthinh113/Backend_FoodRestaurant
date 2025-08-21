@@ -5,6 +5,8 @@ import {
   removeFood,
 } from "../controllers/foodController.js";
 import multer from "multer";
+import authMiddleware from "../middleware/auth.js";
+import adminAuth from "../middleware/adminAuth.js";
 
 const foodRouter = express.Router();
 
@@ -18,8 +20,20 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-foodRouter.post("/add", upload.single("image"), addFood);
-foodRouter.get("/list", listFood);
-foodRouter.post("/remove", removeFood);
+const checkUserId = (req, res, next) => {
+  console.log("User ID from token:", req.body.userId);
+  next();
+};
+
+foodRouter.post(
+  "/add",
+  authMiddleware,
+  checkUserId,
+  adminAuth,
+  upload.single("image"),
+  addFood
+);
+foodRouter.get("/list", authMiddleware, listFood);
+foodRouter.post("/remove", authMiddleware, adminAuth, removeFood);
 
 export default foodRouter;
