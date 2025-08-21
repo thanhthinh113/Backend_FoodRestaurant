@@ -1,4 +1,4 @@
-# 🍔 Backend - Food Ordering (Chi tiết)
+# 🍔 Backend - Food Ordering 
 
 **Mô tả:**
 Backend này được xây dựng bằng **Node.js + Express + MongoDB** cho một ứng dụng web đặt đồ ăn. Nó cung cấp API REST để quản lý người dùng, món ăn, giỏ hàng, đơn hàng, và tích hợp thanh toán (ví dụ Stripe).
