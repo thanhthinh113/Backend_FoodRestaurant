@@ -27,13 +27,16 @@ const checkUserId = (req, res, next) => {
 
 foodRouter.post(
   "/add",
-  authMiddleware,
-  checkUserId,
-  adminAuth,
+  //authMiddleware,
+  //checkUserId,
+  //adminAuth,
   upload.single("image"),
   addFood
 );
-foodRouter.get("/list", authMiddleware, listFood);
-foodRouter.post("/remove", authMiddleware, adminAuth, removeFood);
+foodRouter.get("/list", listFood);
+foodRouter.post("/remove", removeFood);
+
+//foodRouter.get("/list", authMiddleware, listFood);
+//foodRouter.post("/remove", authMiddleware, adminAuth, removeFood);
 
 export default foodRouter;

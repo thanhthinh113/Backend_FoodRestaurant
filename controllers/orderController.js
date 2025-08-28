@@ -19,7 +19,7 @@ const placeOrder = async (req, res) => {
 
     const line_items = req.body.items.map((item) => ({
       price_data: {
-        currency: "inr",
+        currency: "vnd",
         product_data: {
           name: item.name,
         },
@@ -29,7 +29,7 @@ const placeOrder = async (req, res) => {
     }));
     line_items.push({
       price_data: {
-        currency: "inr",
+        currency: "vnd",
         product_data: {
           name: "Delivery Charges",
         },
@@ -57,4 +57,45 @@ const placeOrder = async (req, res) => {
   }
 };
 
-export { placeOrder };
+const verifyOrder = async (req, res) => {
+  const { orderId, success } = req.body;
+  try {
+    if (success === "true") {
+      await orderModel.findByIdAndUpdate(orderId, { payment: true });
+      res.json({
+        success: true,
+        message: "Payment verified and order updated successfully",
+      });
+    } else {
+      await orderModel.findByIdAndDelete(orderId);
+      res.json({
+        success: false,
+        message: "Payment failed, order deleted",
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    res.json({
+      success: false,
+      message: "Error verifying payment",
+    });
+  }
+};
+
+const userOrders = async (req, res) => {
+  try {
+    const orders = await orderModel.find({ userId: req.body.userId });
+    res.json({
+      success: true,
+      orders,
+    });
+  } catch (error) {
+    console.log(error);
+    res.json({
+      success: false,
+      message: "Error fetching user orders",
+    });
+  }
+};
+
+export { placeOrder, verifyOrder, userOrders };
