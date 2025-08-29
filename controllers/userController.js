@@ -26,6 +26,7 @@ const loginUser = async (req, res) => {
       success: true,
       message: "User logged in successfully",
       token,
+      role: user.role,
     });
   } catch (error) {
     console.log(error);
@@ -74,6 +75,7 @@ const registerUser = async (req, res) => {
       name: name,
       email: email,
       password: hashedPassword,
+      role: "user",
     });
     const user = await newUser.save();
     const token = createToken(user._id);
@@ -81,6 +83,7 @@ const registerUser = async (req, res) => {
       success: true,
       message: "User registered successfully",
       token,
+      role: user.role,
     });
   } catch (error) {
     console.log(error);
