@@ -2,6 +2,7 @@ import userModel from "../models/userModel.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import validator from "validator";
+import e from "express";
 
 //login user
 const loginUser = async (req, res) => {
@@ -27,6 +28,8 @@ const loginUser = async (req, res) => {
       message: "User logged in successfully",
       token,
       role: user.role,
+      name: user.name,
+      email: user.email,
     });
   } catch (error) {
     console.log(error);
@@ -84,6 +87,8 @@ const registerUser = async (req, res) => {
       message: "User registered successfully",
       token,
       role: user.role,
+      name: user.name,
+      email: user.email,
     });
   } catch (error) {
     console.log(error);
