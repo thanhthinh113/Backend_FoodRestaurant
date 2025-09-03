@@ -98,5 +98,21 @@ const registerUser = async (req, res) => {
     });
   }
 };
+// get all users
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await userModel.find({}, "-password"); // bỏ password ra cho an toàn
+    res.json({
+      success: true,
+      users,
+    });
+  } catch (error) {
+    console.log(error);
+    res.json({
+      success: false,
+      message: "Failed to fetch users",
+    });
+  }
+};
 
-export { loginUser, registerUser };
+export { loginUser, registerUser, getAllUsers };
