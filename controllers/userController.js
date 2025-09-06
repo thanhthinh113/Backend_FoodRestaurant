@@ -27,9 +27,14 @@ const loginUser = async (req, res) => {
       success: true,
       message: "User logged in successfully",
       token,
-      role: user.role,
-      name: user.name,
-      email: user.email,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone,
+        address: user.address,
+      },
     });
   } catch (error) {
     console.log(error);
