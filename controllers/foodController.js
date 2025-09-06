@@ -64,5 +64,42 @@ const removeFood = async (req, res) => {
     });
   }
 };
+const updateFood = async (req, res) => {
+  try {
+    const { id, name, description, price, category } = req.body;
 
-export { addFood, listFood, removeFood };
+    // lấy food hiện tại
+    const food = await foodModel.findById(id);
+    if (!food) {
+      return res.json({ success: false, message: "Food item not found" });
+    }
+
+    // nếu có upload ảnh mới thì xóa ảnh cũ
+    if (req.file) {
+      fs.unlink(`uploads/${food.image}`, () => {});
+      food.image = req.file.filename;
+    }
+
+    // cập nhật các field còn lại
+    food.name = name || food.name;
+    food.description = description || food.description;
+    food.price = price || food.price;
+    food.category = category || food.category;
+
+    await food.save();
+
+    res.json({
+      success: true,
+      message: "Food item updated successfully",
+      data: food,
+    });
+  } catch (error) {
+    console.log(error);
+    res.json({
+      success: false,
+      message: "Failed to update food item",
+    });
+  }
+};
+
+export { addFood, listFood, removeFood, updateFood };

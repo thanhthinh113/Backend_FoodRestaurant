@@ -3,6 +3,7 @@ import {
   addFood,
   listFood,
   removeFood,
+  updateFood,
 } from "../controllers/foodController.js";
 import multer from "multer";
 import authMiddleware from "../middleware/auth.js";
@@ -35,6 +36,7 @@ foodRouter.post(
 );
 foodRouter.get("/list", listFood);
 foodRouter.post("/remove", removeFood);
+foodRouter.put("/update", upload.single("image"), updateFood);
 
 //foodRouter.get("/list", authMiddleware, listFood);
 //foodRouter.post("/remove", authMiddleware, adminAuth, removeFood);
