@@ -1,44 +1,37 @@
 import express from "express";
-import {
-  addFood,
-  listFood,
-  removeFood,
-  updateFood,
-} from "../controllers/foodController.js";
 import multer from "multer";
-import authMiddleware from "../middleware/auth.js";
-import adminAuth from "../middleware/adminAuth.js";
+import {
+  createFood,
+  listFood, // sửa lại từ getFoods → listFood
+  getFoodById,
+  updateFood,
+  deleteFood,
+} from "../controllers/foodController.js";
 
-const foodRouter = express.Router();
+const router = express.Router();
 
-//Image Storage Engine
+// Multer config
 const storage = multer.diskStorage({
-  destination: "uploads",
-  filename: (req, file, cb) => {
-    return cb(null, `${Date.now()}${file.originalname}`);
-  },
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
 });
+const upload = multer({ storage });
 
-const upload = multer({ storage: storage });
+/**
+ * API cho FE cũ
+ * (frontend trước đây đang gọi theo đường dẫn riêng)
+ */
+router.post("/add", upload.single("image"), createFood); // Thêm món ăn
+router.get("/list", listFood); // Lấy danh sách món ăn
+router.post("/remove", deleteFood); // Xóa món ăn (FE đang gọi POST với id)
 
-const checkUserId = (req, res, next) => {
-  console.log("User ID from token:", req.body.userId);
-  next();
-};
+/**
+ * API RESTful mới
+ */
+router.post("/", upload.single("image"), createFood);
+router.get("/", listFood);
+router.get("/:id", getFoodById);
+router.put("/:id", upload.single("image"), updateFood);
+router.delete("/:id", deleteFood);
 
-foodRouter.post(
-  "/add",
-  //authMiddleware,
-  //checkUserId,
-  //adminAuth,
-  upload.single("image"),
-  addFood
-);
-foodRouter.get("/list", listFood);
-foodRouter.post("/remove", removeFood);
-foodRouter.put("/update", upload.single("image"), updateFood);
-
-//foodRouter.get("/list", authMiddleware, listFood);
-//foodRouter.post("/remove", authMiddleware, adminAuth, removeFood);
-
-export default foodRouter;
+export default router;

@@ -1,105 +1,166 @@
-import foodModel from "../models/foodModel.js";
-import fs from "fs";
+// import Food from "../models/foodModel.js";
 
-// add food item
+// // Create food
+// export const createFood = async (req, res) => {
+//   try {
+//     const { name, price, description, category } = req.body;
+//     const image = req.file ? req.file.filename : null;
 
-const addFood = async (req, res) => {
-  let image_filename = `${req.file.filename}`;
+//     const food = await Food.create({
+//       name,
+//       price,
+//       description,
+//       category,
+//       image,
+//     });
 
-  const food = new foodModel({
-    name: req.body.name,
-    description: req.body.description,
-    price: req.body.price,
-    category: req.body.category,
-    image: image_filename,
-  });
+//     res
+//       .status(201)
+//       .json({ success: true, data: food, message: "Food created" });
+//   } catch (error) {
+//     res.status(400).json({ success: false, message: error.message });
+//   }
+// };
+
+// // Get all foods
+// export const getFoods = async (req, res) => {
+//   try {
+//     const foods = await Food.find().populate("category", "name");
+//     res.json({ success: true, data: foods });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+// // Get single food
+// export const getFoodById = async (req, res) => {
+//   try {
+//     const food = await Food.findById(req.params.id).populate(
+//       "category",
+//       "name"
+//     );
+//     if (!food)
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Food not found" });
+//     res.json({ success: true, data: food });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+// // Update food
+// export const updateFood = async (req, res) => {
+//   try {
+//     const { name, price, description, category } = req.body;
+//     const updateData = { name, price, description, category };
+
+//     if (req.file) {
+//       updateData.image = req.file.filename;
+//     }
+
+//     const food = await Food.findByIdAndUpdate(req.params.id, updateData, {
+//       new: true,
+//     }).populate("category", "name");
+
+//     if (!food)
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Food not found" });
+//     res.json({ success: true, data: food, message: "Food updated" });
+//   } catch (error) {
+//     res.status(400).json({ success: false, message: error.message });
+//   }
+// };
+
+// // Delete food
+// export const deleteFood = async (req, res) => {
+//   try {
+//     const { id } = req.body; // FE đang gửi POST với {id}
+//     const food = await Food.findByIdAndDelete(id);
+//     if (!food)
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Food not found" });
+//     res.json({ success: true, message: "Food deleted" });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+import Food from "../models/foodModel.js";
+
+// Lấy toàn bộ danh sách món ăn
+export const listFood = async (req, res) => {
   try {
-    await food.save();
-    res.json({
-      success: true,
-      message: "Food item added successfully",
-    });
+    const foods = await Food.find().populate("categoryId", "name");
+    res.json({ success: true, data: foods });
   } catch (error) {
-    console.log(error);
-    res.json({
-      success: false,
-      message: "Failed to add food item",
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// all food items
-const listFood = async (req, res) => {
+// Lấy chi tiết 1 món ăn theo id
+export const getFoodById = async (req, res) => {
   try {
-    const foods = await foodModel.find({});
-    res.json({
-      success: true,
-      data: foods,
-    });
-  } catch (error) {
-    console.log(error);
-    res.json({
-      success: false,
-      message: "Failed to retrieve food items",
-    });
-  }
-};
-
-// remove food item
-const removeFood = async (req, res) => {
-  try {
-    const food = await foodModel.findByIdAndDelete(req.body.id);
-    fs.unlink(`uploads/${food.image}`, () => {});
-
-    await foodModel.findByIdAndDelete(req.body.id);
-    res.json({
-      success: true,
-      message: "Food item removed successfully",
-    });
-  } catch (error) {
-    console.log(error);
-    res.json({
-      success: false,
-      message: "Failed to remove food item",
-    });
-  }
-};
-const updateFood = async (req, res) => {
-  try {
-    const { id, name, description, price, category } = req.body;
-
-    // lấy food hiện tại
-    const food = await foodModel.findById(id);
+    const { id } = req.params;
+    const food = await Food.findById(id).populate("categoryId", "name");
     if (!food) {
-      return res.json({ success: false, message: "Food item not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy món ăn" });
     }
-
-    // nếu có upload ảnh mới thì xóa ảnh cũ
-    if (req.file) {
-      fs.unlink(`uploads/${food.image}`, () => {});
-      food.image = req.file.filename;
-    }
-
-    // cập nhật các field còn lại
-    food.name = name || food.name;
-    food.description = description || food.description;
-    food.price = price || food.price;
-    food.category = category || food.category;
-
-    await food.save();
-
-    res.json({
-      success: true,
-      message: "Food item updated successfully",
-      data: food,
-    });
+    res.json({ success: true, data: food });
   } catch (error) {
-    console.log(error);
-    res.json({
-      success: false,
-      message: "Failed to update food item",
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-export { addFood, listFood, removeFood, updateFood };
+// Thêm món
+export const createFood = async (req, res) => {
+  try {
+    const { name, description, price, categoryId } = req.body;
+    const image = req.file ? "images/" + req.file.filename : "";
+
+    const newFood = new Food({
+      name,
+      description,
+      price,
+      image,
+      categoryId,
+    });
+
+    await newFood.save();
+    res.json({ success: true, data: newFood });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Cập nhật món
+export const updateFood = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, price, categoryId } = req.body;
+    const updateData = { name, description, price, categoryId };
+
+    if (req.file) {
+      updateData.image = "images/" + req.file.filename;
+    }
+
+    const updated = await Food.findByIdAndUpdate(id, updateData, { new: true });
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Xoá món
+export const deleteFood = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Food.findByIdAndDelete(id);
+    res.json({ success: true, message: "Đã xoá món ăn" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
