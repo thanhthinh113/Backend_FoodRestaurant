@@ -8,6 +8,7 @@ import cartRouter from "./routes/cartRoute.js";
 import orderRouter from "./routes/orderRoute.js";
 import bodyParser from "body-parser";
 import categoryRoutes from "./routes/categoryRoutes.js";
+import comboRoutes from "./routes/comboRoutes.js";
 
 // app config
 const app = express();
@@ -28,6 +29,7 @@ app.use("/api/user", userRouter);
 app.use("/api/cart", cartRouter);
 app.use("/api/order", orderRouter);
 app.use("/api/categories", categoryRoutes);
+app.use("/api/combos", comboRoutes);
 
 app.get("/", (req, res) => res.send("API Working!"));
 
