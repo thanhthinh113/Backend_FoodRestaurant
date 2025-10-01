@@ -2,7 +2,7 @@ import express from "express";
 import multer from "multer";
 import {
   createFood,
-  listFood, // sửa lại từ getFoods → listFood
+  listFood, 
   getFoodById,
   updateFood,
   deleteFood,
@@ -33,5 +33,6 @@ router.get("/", listFood);
 router.get("/:id", getFoodById);
 router.put("/:id", upload.single("image"), updateFood);
 router.delete("/:id", deleteFood);
+router.get("/:id", getFoodById);
 
 export default router;
