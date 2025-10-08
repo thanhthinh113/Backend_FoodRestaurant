@@ -5,7 +5,7 @@ import path from "path";
 export const createCategory = async (req, res) => {
   try {
     const { name, description } = req.body;
-    const imagePath = req.file ? `images/${req.file.filename}` : null;
+    const imagePath = req.file ? `uploads/${req.file.filename}` : null;
 
     const category = new Category({
       name,
@@ -47,14 +47,10 @@ export const updateCategory = async (req, res) => {
     if (req.file) {
       // Xóa ảnh cũ nếu có
       if (category.image) {
-        const oldPath = path.join(
-          process.cwd(),
-          "uploads",
-          category.image.replace("images/", "")
-        );
+        const oldPath = path.join(process.cwd(), category.image);
         if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
-      category.image = `images/${req.file.filename}`;
+      category.image = `uploads/${req.file.filename}`;
     }
 
     await category.save();
@@ -76,11 +72,7 @@ export const deleteCategory = async (req, res) => {
 
     // Xóa ảnh trong thư mục uploads
     if (category.image) {
-      const oldPath = path.join(
-        process.cwd(),
-        "uploads",
-        category.image.replace("images/", "")
-      );
+      const oldPath = path.join(process.cwd(), category.image);
       if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
     }
 
