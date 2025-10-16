@@ -64,49 +64,56 @@ export const deleteVoucher = async (req, res) => {
 // 🔄 Người dùng đổi điểm lấy voucher
 export const redeemVoucher = async (req, res) => {
   try {
-    const { userId, code } = req.body;
-    const voucher = await voucherModel.findOne({ code, isActive: true });
-    if (!voucher)
+    const userId = req.body.userId; // từ authMiddleware
+    const { voucherId } = req.body;
+
+    const voucher = await voucherModel.findById(voucherId);
+    if (!voucher || !voucher.isActive) {
       return res.json({
         success: false,
-        message: "Voucher not found or inactive",
+        message: "Voucher không tồn tại hoặc không hoạt động",
       });
+    }
 
     // Kiểm tra hết hạn
     if (new Date(voucher.expiryDate) < new Date()) {
       voucher.isActive = false;
       await voucher.save();
-      return res.json({
-        success: false,
-        message: "Voucher expired",
-      });
+      return res.json({ success: false, message: "Voucher đã hết hạn" });
     }
 
     const user = await userModel.findById(userId);
-    if (!user) return res.json({ success: false, message: "User not found" });
+    if (!user)
+      return res.json({ success: false, message: "Không tìm thấy user" });
 
     if (user.points < voucher.pointsRequired) {
-      return res.json({ success: false, message: "Not enough points" });
+      return res.json({
+        success: false,
+        message: "Không đủ điểm để đổi voucher",
+      });
     }
 
-    // Trừ điểm và thêm voucher vào danh sách đã đổi
+    // ✅ Trừ điểm và thêm voucher vào danh sách đã đổi
     user.points -= voucher.pointsRequired;
-    if (!user.redeemedVouchers) user.redeemedVouchers = [];
     user.redeemedVouchers.push({
       code: voucher.code,
       discountPercent: voucher.discountPercent,
       expiryDate: voucher.expiryDate,
     });
+
     await user.save();
 
     res.json({
       success: true,
-      message: "Voucher redeemed successfully",
-      voucher,
+      message: "Đổi voucher thành công",
       userPoints: user.points,
+      voucher: {
+        code: voucher.code,
+        discountPercent: voucher.discountPercent,
+      },
     });
   } catch (error) {
     console.error(error);
-    res.json({ success: false, message: "Failed to redeem voucher" });
+    res.json({ success: false, message: "Lỗi khi đổi voucher" });
   }
 };

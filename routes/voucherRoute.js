@@ -6,7 +6,7 @@ import {
   deleteVoucher,
   redeemVoucher,
 } from "../controllers/voucherController.js";
-
+import authMiddleware from "../middleware/auth.js";
 const voucherRouter = express.Router();
 
 // 🧾 Admin tạo voucher mới
@@ -16,7 +16,7 @@ voucherRouter.post("/create", createVoucher);
 voucherRouter.get("/list", getAllVouchers);
 
 // 🎟️ User đổi điểm lấy voucher
-voucherRouter.post("/redeem", redeemVoucher);
+voucherRouter.post("/redeem", authMiddleware, redeemVoucher);
 
 // ❌ Admin xóa voucher
 voucherRouter.delete("/delete/:id", deleteVoucher);
