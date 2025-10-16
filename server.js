@@ -12,6 +12,7 @@ import comboRoutes from "./routes/comboRoutes.js";
 import adminStatsRouter from "./routes/adminStats.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
 import path from "path";
+import voucherRouter from "./routes/voucherRoute.js";
 
 // app config
 const app = express();
@@ -36,6 +37,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/combos", comboRoutes);
 app.use("/api/admin/stats", adminStatsRouter);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/voucher", voucherRouter);
 
 app.get("/", (req, res) => res.send("API Working!"));
 

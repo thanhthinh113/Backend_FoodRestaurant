@@ -43,6 +43,13 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    redeemedVouchers: [
+      {
+        code: String,
+        discountPercent: Number,
+        expiryDate: Date,
+      },
+    ],
   },
   { minimize: false, timestamps: true }
 );
