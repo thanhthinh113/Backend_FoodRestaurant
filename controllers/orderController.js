@@ -61,10 +61,27 @@ const verifyOrder = async (req, res) => {
   const { orderId, success } = req.body;
   try {
     if (success === "true") {
-      await orderModel.findByIdAndUpdate(orderId, { payment: true });
+      const order = await orderModel.findByIdAndUpdate(
+        orderId,
+        { payment: true },
+        { new: true }
+      );
+
+      const earnedPoints = Math.floor(order.amount / 10000);
+      await userModel.findByIdAndUpdate(order.userId, {
+        $inc: { points: earnedPoints },
+      });
+
+      // 👉 lấy user mới sau khi update
+      const updatedUser = await userModel
+        .findById(order.userId)
+        .select("-password");
+
       res.json({
         success: true,
         message: "Payment verified and order updated successfully",
+        earnedPoints,
+        user: updatedUser, // 🔥 trả về user mới
       });
     } else {
       await orderModel.findByIdAndDelete(orderId);

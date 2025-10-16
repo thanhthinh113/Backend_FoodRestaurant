@@ -39,6 +39,10 @@ const userSchema = new mongoose.Schema(
       type: addressSchema,
       default: {},
     },
+    points: {
+      type: Number,
+      default: 0,
+    },
   },
   { minimize: false, timestamps: true }
 );
