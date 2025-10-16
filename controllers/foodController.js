@@ -1,5 +1,6 @@
 import Food from "../models/foodModel.js";
 
+
 // Lấy toàn bộ danh sách món ăn
 export const listFood = async (req, res) => {
   try {
@@ -10,21 +11,29 @@ export const listFood = async (req, res) => {
   }
 };
 
-// Lấy chi tiết 1 món ăn theo id
-// export const getFoodById = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const food = await Food.findById(id).populate("categoryId", "name");
-//     if (!food) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "Không tìm thấy món ăn" });
-//     }
-//     res.json({ success: true, data: food });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: error.message });
-//   }
-// };
+// 🔍 Tìm kiếm món ăn theo tên hoặc mô tả
+export const searchFoods = async (req, res) => {
+  try {
+    const { q } = req.query; // lấy từ query string ?q=pizza
+    if (!q) {
+      return res.status(400).json({ success: false, message: "Thiếu từ khóa tìm kiếm" });
+    }
+
+    // tìm theo name hoặc description (không phân biệt hoa thường)
+    const results = await Food.find({
+      $or: [
+        { name: { $regex: q, $options: "i" } },
+        { description: { $regex: q, $options: "i" } },
+      ],
+    }).populate("categoryId", "name");
+
+    res.json({ success: true, data: results });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
 export const getFoodById = async (req, res) => {
   try {
     const food = await Food.findById(req.params.id).populate(
@@ -44,8 +53,8 @@ export const getFoodById = async (req, res) => {
 export const createFood = async (req, res) => {
   try {
     const { name, description, price, categoryId } = req.body;
-    const image = req.file ? "images/" + req.file.filename : "";
-
+    // const image = req.file ? "images/" + req.file.filename : "";
+    const image = req.file ? "uploads/" + req.file.filename : "";
     const newFood = new Food({
       name,
       description,
