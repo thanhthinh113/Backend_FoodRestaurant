@@ -23,33 +23,36 @@ const placeOrder = async (req, res) => {
         product_data: {
           name: item.name,
         },
-        unit_amount: item.price, // Convert to smallest currency unit
+        unit_amount: item.price,
       },
       quantity: item.quantity,
     }));
+
     line_items.push({
       price_data: {
         currency: "vnd",
         product_data: {
           name: "Delivery Charges",
         },
-        unit_amount: 30000, // Delivery charge in smallest currency unit
+        unit_amount: 30000,
       },
       quantity: 1,
     });
+
     const session = await stripe.checkout.sessions.create({
-      line_items: line_items,
+      line_items,
       mode: "payment",
       success_url: `${frontend_url}/verify?success=true&orderId=${newOrder._id}`,
       cancel_url: `${frontend_url}/verify?success=false&orderId=${newOrder._id}`,
     });
+
     res.json({
       success: true,
       message: "Order placed successfully",
       session_url: session.url,
     });
   } catch (error) {
-    console.log(error);
+    console.log("❌ Lỗi placeOrder:", error);
     res.json({
       success: false,
       message: "Failed to place order",
@@ -63,7 +66,7 @@ const verifyOrder = async (req, res) => {
     if (success === "true") {
       const order = await orderModel.findByIdAndUpdate(
         orderId,
-        { payment: true },
+        { payment: true, status: "Completed" },
         { new: true }
       );
 
@@ -72,7 +75,6 @@ const verifyOrder = async (req, res) => {
         $inc: { points: earnedPoints },
       });
 
-      // 👉 lấy user mới sau khi update
       const updatedUser = await userModel
         .findById(order.userId)
         .select("-password");
@@ -81,7 +83,7 @@ const verifyOrder = async (req, res) => {
         success: true,
         message: "Payment verified and order updated successfully",
         earnedPoints,
-        user: updatedUser, // 🔥 trả về user mới
+        user: updatedUser,
       });
     } else {
       await orderModel.findByIdAndDelete(orderId);
@@ -91,7 +93,7 @@ const verifyOrder = async (req, res) => {
       });
     }
   } catch (error) {
-    console.log(error);
+    console.log("❌ Lỗi verifyOrder:", error);
     res.json({
       success: false,
       message: "Error verifying payment",
@@ -101,13 +103,25 @@ const verifyOrder = async (req, res) => {
 
 const userOrders = async (req, res) => {
   try {
-    const orders = await orderModel.find({ userId: req.body.userId });
+    const userId = req.user?.id || req.body.userId;
+    console.log("✅ User từ token:", req.user);
+    console.log("🔹 userId dùng để truy vấn:", userId);
+
+    const orders = await orderModel.find({ userId });
+
+    console.log("📦 Kết quả truy vấn orders:", orders?.length);
+    if (orders?.length > 0) {
+      console.log("🧾 Mẫu 1 order:", JSON.stringify(orders[0], null, 2));
+    } else {
+      console.log("⚠️ Không tìm thấy order nào cho userId:", userId);
+    }
+
     res.json({
       success: true,
       orders,
     });
   } catch (error) {
-    console.log(error);
+    console.log("❌ Lỗi userOrders:", error);
     res.json({
       success: false,
       message: "Error fetching user orders",
@@ -123,7 +137,7 @@ const listOrders = async (req, res) => {
       orders,
     });
   } catch (error) {
-    console.log(error);
+    console.log("❌ Lỗi listOrders:", error);
     res.json({
       success: false,
       message: "Error fetching orders",
@@ -141,7 +155,7 @@ const updateStatus = async (req, res) => {
       message: "Order status updated successfully",
     });
   } catch (error) {
-    console.log(error);
+    console.log("❌ Lỗi updateStatus:", error);
     res.json({
       success: false,
       message: "Error updating order status",

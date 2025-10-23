@@ -6,6 +6,7 @@ const foodSchema = new mongoose.Schema({
   price: { type: Number, required: true },
   image: String,
   categoryId: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
+  averageRating: { type: Number, default: 0 },
 });
 
 export default mongoose.model("Food", foodSchema);
