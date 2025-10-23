@@ -35,6 +35,7 @@ const loginUser = async (req, res) => {
         phone: user.phone,
         address: user.address,
         points: user.points,
+        redeemedVouchers: user.redeemedVouchers || [],
       },
     });
   } catch (error) {
@@ -86,6 +87,7 @@ const registerUser = async (req, res) => {
       password: hashedPassword,
       role: "user",
       points: 0,
+      redeemedVouchers: [],
     });
     const user = await newUser.save();
     const token = createToken(user._id);
@@ -159,5 +161,22 @@ const getUserPoints = async (req, res) => {
     res.json({ success: false, message: "Failed to fetch points" });
   }
 };
+const getUserProfile = async (req, res) => {
+  try {
+    const user = await userModel.findById(req.body.userId).select("-password");
+    if (!user) return res.json({ success: false, message: "User not found" });
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error(error);
+    res.json({ success: false, message: "Failed to fetch profile" });
+  }
+};
 
-export { loginUser, registerUser, getAllUsers, updateProfile, getUserPoints };
+export {
+  loginUser,
+  registerUser,
+  getAllUsers,
+  updateProfile,
+  getUserPoints,
+  getUserProfile,
+};
