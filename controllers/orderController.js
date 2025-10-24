@@ -104,12 +104,9 @@ const verifyOrder = async (req, res) => {
 const userOrders = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
-    console.log("✅ User từ token:", req.user);
-    console.log("🔹 userId dùng để truy vấn:", userId);
 
-    const orders = await orderModel.find({ userId });
+    const orders = await orderModel.find({ userId }).sort({ _id: -1 });
 
-    console.log("📦 Kết quả truy vấn orders:", orders?.length);
     if (orders?.length > 0) {
       console.log("🧾 Mẫu 1 order:", JSON.stringify(orders[0], null, 2));
     } else {
