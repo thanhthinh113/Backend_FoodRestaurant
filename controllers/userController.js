@@ -172,6 +172,69 @@ const getUserProfile = async (req, res) => {
   }
 };
 
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    // Kiểm tra dữ liệu đầu vào
+    if (!currentPassword || !newPassword) {
+      return res.json({
+        success: false,
+        message: "Vui lòng nhập đủ thông tin",
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.json({
+        success: false,
+        message: "Mật khẩu mới phải ít nhất 8 ký tự",
+      });
+    }
+
+    // Kiểm tra trùng nhau
+    if (currentPassword === newPassword) {
+      return res.json({
+        success: false,
+        message: "Mật khẩu mới không được trùng với mật khẩu cũ",
+      });
+    }
+
+    // Tìm user theo userId từ middleware
+    const user = await userModel.findById(req.body.userId);
+    if (!user) {
+      return res.json({ success: false, message: "Không tìm thấy người dùng" });
+    }
+
+    // So sánh mật khẩu cũ
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.json({
+        success: false,
+        message: "Mật khẩu hiện tại không đúng",
+      });
+    }
+
+    // Hash mật khẩu mới
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // Cập nhật mật khẩu
+    user.password = hashedPassword;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Đổi mật khẩu thành công",
+    });
+  } catch (error) {
+    console.error(error);
+    res.json({
+      success: false,
+      message: "Đổi mật khẩu thất bại",
+    });
+  }
+};
+
 export {
   loginUser,
   registerUser,
@@ -179,4 +242,5 @@ export {
   updateProfile,
   getUserPoints,
   getUserProfile,
+  changePassword,
 };

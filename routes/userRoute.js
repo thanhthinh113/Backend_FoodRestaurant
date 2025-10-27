@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  changePassword,
   getAllUsers,
   getUserProfile,
   loginUser,
@@ -15,4 +16,5 @@ userRouter.post("/register", registerUser);
 userRouter.get("/all", authMiddleware, adminAuth, getAllUsers);
 userRouter.post("/update-profile", authMiddleware, updateProfile);
 userRouter.get("/profile", authMiddleware, getUserProfile);
+userRouter.post("/change-password", authMiddleware, changePassword);
 export default userRouter;
