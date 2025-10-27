@@ -8,60 +8,121 @@ const placeOrder = async (req, res) => {
   const frontend_url = "http://localhost:5173";
 
   try {
-    const newOrder = new orderModel({
-      userId: req.body.userId,
-      items: req.body.items,
-      amount: req.body.amount,
-      address: req.body.address,
-    });
-    await newOrder.save();
-    await userModel.findByIdAndUpdate(req.body.userId, { cartData: {} });
+    const { userId, items, amount, address, voucherCode } = req.body;
+    let finalAmount = amount;
+    let appliedVoucher = null;
+    let coupon = null;
 
-    const line_items = req.body.items.map((item) => ({
+    // 🔎 Kiểm tra voucher (nếu có)
+    if (voucherCode) {
+      const user = await userModel.findById(userId);
+      appliedVoucher = user.redeemedVouchers.find(
+        (v) => v.code === voucherCode
+      );
+
+      if (!appliedVoucher) {
+        return res.json({
+          success: false,
+          message: "Voucher không tồn tại trong tài khoản người dùng",
+        });
+      }
+
+      if (new Date(appliedVoucher.expiryDate) < new Date()) {
+        return res.json({
+          success: false,
+          message: "Voucher đã hết hạn",
+        });
+      }
+
+      // ✅ Giảm giá theo số tiền cố định (VD: 20000 VND)
+      if (
+        appliedVoucher.discountPercent &&
+        appliedVoucher.discountPercent > 0
+      ) {
+        finalAmount = Math.max(amount - appliedVoucher.discountPercent, 0);
+
+        coupon = await stripe.coupons.create({
+          currency: "vnd",
+          amount_off: appliedVoucher.discountPercent,
+          name: `Giảm ${appliedVoucher.discountPercent.toLocaleString(
+            "vi-VN"
+          )}₫`,
+        });
+      }
+    }
+
+    // 🧾 Tạo đơn hàng DB
+    const newOrder = new orderModel({
+      userId,
+      items,
+      amount: finalAmount,
+      address,
+      voucherCode: appliedVoucher ? appliedVoucher.code : null,
+      payment: false,
+      status: "Đang chờ thanh toán",
+    });
+
+    await newOrder.save();
+    await userModel.findByIdAndUpdate(userId, { cartData: {} });
+
+    // ⚙️ Danh sách sản phẩm
+    const line_items = items.map((item) => ({
       price_data: {
         currency: "vnd",
-        product_data: {
-          name: item.name,
-        },
-        unit_amount: item.price,
+        product_data: { name: item.name },
+        unit_amount: item.price, // Stripe yêu cầu số nguyên (VD: 20000 = 20,000₫)
       },
       quantity: item.quantity,
     }));
 
+    // ⚙️ Thêm phí giao hàng
     line_items.push({
       price_data: {
         currency: "vnd",
-        product_data: {
-          name: "Delivery Charges",
-        },
+        product_data: { name: "Phí giao hàng" },
         unit_amount: 30000,
       },
       quantity: 1,
     });
 
-    const session = await stripe.checkout.sessions.create({
+    // 🧾 Tạo session Stripe có giảm giá
+    const sessionData = {
       line_items,
       mode: "payment",
       success_url: `${frontend_url}/verify?success=true&orderId=${newOrder._id}`,
       cancel_url: `${frontend_url}/verify?success=false&orderId=${newOrder._id}`,
-    });
+      metadata: appliedVoucher
+        ? {
+            voucher: appliedVoucher.code,
+            discount: `${appliedVoucher.discountPercent} VND`,
+          }
+        : {},
+    };
+
+    // Nếu có voucher → thêm coupon giảm giá
+    if (coupon) {
+      sessionData.discounts = [{ coupon: coupon.id }];
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionData);
 
     res.json({
       success: true,
-      message: "Order placed successfully",
+      message: "Tạo session Stripe thành công",
       session_url: session.url,
+      finalAmount,
+      discountApplied: appliedVoucher?.discountPercent || 0,
     });
   } catch (error) {
     console.log("❌ Lỗi placeOrder:", error);
-    res.json({
-      success: false,
-      message: "Failed to place order",
-    });
+    res.json({ success: false, message: "Lỗi khi tạo đơn hàng" });
   }
 };
 
+// 🧩 Xác nhận thanh toán
 const verifyOrder = async (req, res) => {
   const { orderId, success } = req.body;
+
   try {
     if (success === "true") {
       const order = await orderModel.findByIdAndUpdate(
@@ -70,34 +131,74 @@ const verifyOrder = async (req, res) => {
         { new: true }
       );
 
-      const earnedPoints = Math.floor(order.amount / 10000);
-      await userModel.findByIdAndUpdate(order.userId, {
-        $inc: { points: earnedPoints },
-      });
+      if (!order) {
+        return res.json({
+          success: false,
+          message: "Không tìm thấy đơn hàng",
+        });
+      }
 
+      const earnedPoints = Math.floor(order.amount / 10000);
+
+      // ✅ Xử lý voucher (chỉ xóa 1 cái)
+      if (order.voucherCode) {
+        const user = await userModel.findById(order.userId);
+
+        if (user) {
+          const index = user.redeemedVouchers.findIndex(
+            (v) => v.code === order.voucherCode
+          );
+
+          if (index !== -1) {
+            user.redeemedVouchers.splice(index, 1); // ❗️Xóa đúng 1 voucher thôi
+          }
+
+          // ✅ Cộng điểm
+          user.points += earnedPoints;
+
+          await user.save();
+
+          return res.json({
+            success: true,
+            message: "Thanh toán thành công, đã xóa 1 voucher và cộng điểm",
+            earnedPoints,
+            user: user.toObject({
+              versionKey: false,
+              transform: (_, ret) => {
+                delete ret.password;
+                return ret;
+              },
+            }),
+          });
+        }
+      }
+
+      // ❇️ Trường hợp không có voucher
       const updatedUser = await userModel
-        .findById(order.userId)
+        .findByIdAndUpdate(
+          order.userId,
+          { $inc: { points: earnedPoints } },
+          { new: true }
+        )
         .select("-password");
 
       res.json({
         success: true,
-        message: "Payment verified and order updated successfully",
+        message: "Thanh toán thành công, cộng điểm thưởng",
         earnedPoints,
         user: updatedUser,
       });
     } else {
+      // ❌ Nếu thanh toán thất bại thì xóa đơn hàng
       await orderModel.findByIdAndDelete(orderId);
       res.json({
         success: false,
-        message: "Payment failed, order deleted",
+        message: "Thanh toán thất bại, đơn hàng bị xóa",
       });
     }
   } catch (error) {
     console.log("❌ Lỗi verifyOrder:", error);
-    res.json({
-      success: false,
-      message: "Error verifying payment",
-    });
+    res.json({ success: false, message: "Lỗi khi xác minh thanh toán" });
   }
 };
 

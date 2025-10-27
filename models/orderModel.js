@@ -10,6 +10,7 @@ const orderSchema = new mongoose.Schema(
     status: { type: String, default: "Food Processing" },
     date: { type: Date, default: Date.now },
     payment: { type: Boolean, required: false },
+    voucherCode: { type: String, default: null },
   },
   { timestamps: true }
 );
