@@ -2,30 +2,36 @@ import userModel from "../models/userModel.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import validator from "validator";
-import e from "express";
 
 //login user
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
+
   try {
+    // Tìm người dùng theo email
     const user = await userModel.findOne({ email });
     if (!user) {
       return res.json({
         success: false,
-        message: "User not found",
+        message: "Sai tài khoản",
       });
     }
+
+    // Kiểm tra mật khẩu
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.json({
         success: false,
-        message: "Invalid credentials",
+        message: "Sai mật khẩu",
       });
     }
+
+    // Tạo token đăng nhập
     const token = createToken(user._id);
+
     res.json({
       success: true,
-      message: "User logged in successfully",
+      message: "Đăng nhập thành công",
       token,
       user: {
         _id: user._id,
@@ -39,10 +45,10 @@ const loginUser = async (req, res) => {
       },
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.json({
       success: false,
-      message: "Failed to login user",
+      message: "Đăng nhập thất bại, vui lòng thử lại sau",
     });
   }
 };
@@ -55,59 +61,68 @@ const createToken = (id) => {
 const registerUser = async (req, res) => {
   const { name, email, password } = req.body;
   try {
-    // checking for valid email
+    // Kiểm tra email đã tồn tại
     const exists = await userModel.findOne({ email });
     if (exists) {
       return res.json({
         success: false,
-        message: "User already exists",
-      });
-    }
-    //validating email format & strong password
-    if (!validator.isEmail(email)) {
-      return res.json({
-        success: false,
-        message: "Invalid email format",
-      });
-    }
-    if (password.length < 8) {
-      return res.json({
-        success: false,
-        message: "Password must be at least 8 characters long",
+        message: "Email này đã được đăng ký",
       });
     }
 
-    // hashing password
+    // Kiểm tra định dạng email và độ dài mật khẩu
+    if (!validator.isEmail(email)) {
+      return res.json({
+        success: false,
+        message: "Định dạng email không hợp lệ",
+      });
+    }
+
+    if (password.length < 8) {
+      return res.json({
+        success: false,
+        message: "Mật khẩu phải có ít nhất 8 ký tự",
+      });
+    }
+
+    // Hash mật khẩu
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const newUser = new userModel({
-      name: name,
-      email: email,
+      name,
+      email,
       password: hashedPassword,
       role: "user",
       points: 0,
       redeemedVouchers: [],
     });
+
     const user = await newUser.save();
     const token = createToken(user._id);
+
     res.json({
       success: true,
-      message: "User registered successfully",
+      message: "Đăng ký tài khoản thành công",
       token,
-      role: user.role,
-      name: user.name,
-      email: user.email,
-      points: user.points,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        points: user.points,
+        redeemedVouchers: user.redeemedVouchers || [],
+      },
     });
   } catch (error) {
     console.log(error);
     res.json({
       success: false,
-      message: "Failed to register user",
+      message: "Đăng ký thất bại, vui lòng thử lại sau",
     });
   }
 };
+
 // get all users
 const getAllUsers = async (req, res) => {
   try {
@@ -120,7 +135,7 @@ const getAllUsers = async (req, res) => {
     console.log(error);
     res.json({
       success: false,
-      message: "Failed to fetch users",
+      message: "Lấy danh sách người dùng thất bại",
     });
   }
 };
@@ -136,39 +151,43 @@ const updateProfile = async (req, res) => {
     );
 
     if (!updatedUser) {
-      return res.json({ success: false, message: "User not found" });
+      return res.json({ success: false, message: "Không tìm thấy người dùng" });
     }
 
     res.json({
       success: true,
-      message: "Profile updated successfully",
+      message: "Cập nhật thông tin cá nhân thành công",
       data: updatedUser,
     });
   } catch (error) {
     console.error(error);
-    res.json({ success: false, message: "Failed to update profile" });
+    res.json({
+      success: false,
+      message: "Cập nhật thông tin cá nhân thất bại",
+    });
   }
 };
 const getUserPoints = async (req, res) => {
   try {
     const user = await userModel.findById(req.body.userId).select("points");
     if (!user) {
-      return res.json({ success: false, message: "User not found" });
+      return res.json({ success: false, message: "Không tìm thấy người dùng" });
     }
     res.json({ success: true, points: user.points });
   } catch (error) {
     console.error(error);
-    res.json({ success: false, message: "Failed to fetch points" });
+    res.json({ success: false, message: "Lấy điểm thưởng thất bại" });
   }
 };
 const getUserProfile = async (req, res) => {
   try {
     const user = await userModel.findById(req.body.userId).select("-password");
-    if (!user) return res.json({ success: false, message: "User not found" });
+    if (!user)
+      return res.json({ success: false, message: "Không tìm thấy người dùng" });
     res.json({ success: true, user });
   } catch (error) {
     console.error(error);
-    res.json({ success: false, message: "Failed to fetch profile" });
+    res.json({ success: false, message: "Lấy thông tin người dùng thất bại" });
   }
 };
 
