@@ -59,7 +59,7 @@ const placeOrder = async (req, res) => {
       address,
       voucherCode: appliedVoucher ? appliedVoucher.code : null,
       payment: false,
-      status: "Đang chờ thanh toán",
+      // status: "Đang chờ thanh toán",
     });
 
     await newOrder.save();
@@ -127,7 +127,7 @@ const verifyOrder = async (req, res) => {
     if (success === "true") {
       const order = await orderModel.findByIdAndUpdate(
         orderId,
-        { payment: true, status: "Completed" },
+        { payment: true },
         { new: true }
       );
 
