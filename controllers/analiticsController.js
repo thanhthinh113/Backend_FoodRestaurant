@@ -35,40 +35,19 @@ export const getSummary = async (req, res) => {
 
     // TOP 5 MÓN BÁN CHẠY ---
     const topSellingFoods = await orderModel.aggregate([
-      { $match: { payment: true, "items.foodId": { $exists: true } } },
       { $unwind: "$items" },
       {
         $group: {
-          _id: "$items.foodId",
+          _id: "$items.name",
           totalQuantity: { $sum: "$items.quantity" },
         },
       },
       { $sort: { totalQuantity: -1 } },
       { $limit: 5 },
       {
-        $addFields: {
-          foodIdObj: {
-            $cond: [
-              { $eq: [{ $type: "$_id" }, "objectId"] },
-              "$_id",
-              { $toObjectId: "$_id" },
-            ],
-          },
-        },
-      },
-      {
-        $lookup: {
-          from: "foods",
-          localField: "foodIdObj",
-          foreignField: "_id",
-          as: "foodDetails",
-        },
-      },
-      { $unwind: { path: "$foodDetails", preserveNullAndEmptyArrays: true } },
-      {
         $project: {
           _id: 0,
-          foodName: { $ifNull: ["$foodDetails.name", "Không xác định"] },
+          name: "$_id",
           totalQuantity: 1,
         },
       },
