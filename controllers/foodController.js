@@ -1,6 +1,5 @@
 import Food from "../models/foodModel.js";
-
-
+import fs from "fs";
 // Lấy toàn bộ danh sách món ăn
 export const listFood = async (req, res) => {
   try {
@@ -16,7 +15,9 @@ export const searchFoods = async (req, res) => {
   try {
     const { q } = req.query; // lấy từ query string ?q=pizza
     if (!q) {
-      return res.status(400).json({ success: false, message: "Thiếu từ khóa tìm kiếm" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Thiếu từ khóa tìm kiếm" });
     }
 
     // tìm theo name hoặc description (không phân biệt hoa thường)
@@ -32,7 +33,6 @@ export const searchFoods = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 
 export const getFoodById = async (req, res) => {
   try {
@@ -91,8 +91,20 @@ export const updateFood = async (req, res) => {
 // Xoá món
 export const deleteFood = async (req, res) => {
   try {
-    const { id } = req.params;
-    await Food.findByIdAndDelete(id);
+    const id = req.params.id || req.body.id; // ✅ hỗ trợ cả hai kiểu
+    if (!id) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Thiếu id món ăn" });
+    }
+
+    const deleted = await Food.findByIdAndDelete(id);
+    if (!deleted) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy món ăn" });
+    }
+    fs.unlink(`uploads/${deleted.image}`, () => {});
     res.json({ success: true, message: "Đã xoá món ăn" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
