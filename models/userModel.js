@@ -50,6 +50,10 @@ const userSchema = new mongoose.Schema(
         expiryDate: Date,
       },
     ],
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
   },
   { minimize: false, timestamps: true }
 );

@@ -6,6 +6,7 @@ import {
   loginUser,
   registerUser,
   updateProfile,
+  verifyEmail,
 } from "../controllers/userController.js";
 import authMiddleware from "../middleware/auth.js";
 import adminAuth from "../middleware/adminAuth.js";
@@ -17,4 +18,5 @@ userRouter.get("/all", authMiddleware, adminAuth, getAllUsers);
 userRouter.post("/update-profile", authMiddleware, updateProfile);
 userRouter.get("/profile", authMiddleware, getUserProfile);
 userRouter.post("/change-password", authMiddleware, changePassword);
+userRouter.post("/verify-email", verifyEmail);
 export default userRouter;
