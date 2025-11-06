@@ -1,10 +1,12 @@
 import express from "express";
 import {
   changePassword,
+  forgotPassword,
   getAllUsers,
   getUserProfile,
   loginUser,
   registerUser,
+  resetPassword,
   updateProfile,
   verifyEmail,
 } from "../controllers/userController.js";
@@ -19,4 +21,6 @@ userRouter.post("/update-profile", authMiddleware, updateProfile);
 userRouter.get("/profile", authMiddleware, getUserProfile);
 userRouter.post("/change-password", authMiddleware, changePassword);
 userRouter.post("/verify-email", verifyEmail);
+userRouter.post("/forgot-password", forgotPassword);
+userRouter.post("/reset-password", resetPassword);
 export default userRouter;

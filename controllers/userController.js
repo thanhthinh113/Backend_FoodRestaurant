@@ -298,6 +298,84 @@ const changePassword = async (req, res) => {
     res.json({ success: false, message: "Đổi mật khẩu thất bại" });
   }
 };
+const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await userModel.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.json({ success: false, message: "Email chưa được đăng ký." });
+    }
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 phút
+
+    user.resetOtp = otpCode;
+    user.resetOtpExpires = otpExpires;
+    await user.save();
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Đặt lại mật khẩu tài khoản",
+      html: `
+        <h3>Xin chào ${user.name || "bạn"},</h3>
+        <p>Mã xác thực đặt lại mật khẩu của bạn là:</p>
+        <h2 style="color:#2c7be5;">${otpCode}</h2>
+        <p>Hiệu lực trong 10 phút.</p>
+      `,
+    });
+
+    res.json({
+      success: true,
+      message: "Đã gửi mã xác thực đặt lại mật khẩu đến email.",
+    });
+  } catch (err) {
+    console.error(err);
+    res.json({ success: false, message: "Gửi mã OTP thất bại." });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  const { email, otpCode, newPassword } = req.body;
+  try {
+    const user = await userModel.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.json({ success: false, message: "Không tìm thấy tài khoản." });
+    }
+
+    if (
+      !user.resetOtp ||
+      user.resetOtp !== otpCode.toString() ||
+      user.resetOtpExpires < new Date()
+    ) {
+      return res.json({
+        success: false,
+        message: "Mã OTP không hợp lệ hoặc đã hết hạn.",
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.json({
+        success: false,
+        message: "Mật khẩu mới phải ít nhất 8 ký tự.",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+
+    // Xóa OTP
+    user.resetOtp = null;
+    user.resetOtpExpires = null;
+
+    await user.save();
+
+    res.json({ success: true, message: "Đặt lại mật khẩu thành công." });
+  } catch (err) {
+    console.error(err);
+    res.json({ success: false, message: "Lỗi khi đặt lại mật khẩu." });
+  }
+};
 
 export {
   loginUser,
@@ -308,4 +386,6 @@ export {
   getUserPoints,
   getUserProfile,
   changePassword,
+  forgotPassword,
+  resetPassword,
 };
