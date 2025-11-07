@@ -222,7 +222,7 @@ const userOrders = async (req, res) => {
     console.log("❌ Lỗi userOrders:", error);
     res.json({
       success: false,
-      message: "Error fetching user orders",
+      message: "Lỗi không tìm thấy đơn hàng",
     });
   }
 };
@@ -250,13 +250,13 @@ const updateStatus = async (req, res) => {
     });
     res.json({
       success: true,
-      message: "Order status updated successfully",
+      message: "Trạng thái đơn hàng đã được cập nhật",
     });
   } catch (error) {
     console.log("❌ Lỗi updateStatus:", error);
     res.json({
       success: false,
-      message: "Error updating order status",
+      message: "Lỗi cập nhật trạng thái đơn hành",
     });
   }
 };
