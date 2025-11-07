@@ -15,6 +15,7 @@ import reviewRoutes from "./routes/reviewRoutes.js";
 import path from "path";
 import voucherRouter from "./routes/voucherRoute.js";
 import analyticsRouter from "./routes/analiticsRoute.js";
+import contactRouter from "./routes/contactRoutes.js";
 
 // app config
 const app = express();
@@ -41,6 +42,7 @@ app.use("/api/admin/stats", adminStatsRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/voucher", voucherRouter);
+app.use("/api/contact", contactRouter);
 
 app.get("/", (req, res) => res.send("API Working!"));
 
