@@ -1,5 +1,35 @@
 import Food from "../models/foodModel.js";
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import fs from "fs";
+import dotenv from "dotenv";
+dotenv.config();
+
+// ✅ Cấu hình AWS S3
+const s3 = new S3Client({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
+const BUCKET_NAME = process.env.AWS_BUCKET_NAME;
+
+// 🧠 Hàm upload ảnh lên S3
+const uploadToS3 = async (file) => {
+  if (!file) return null;
+  const fileName = `foods/${Date.now()}_${file.originalname}`;
+
+  const uploadParams = {
+    Bucket: BUCKET_NAME,
+    Key: fileName,
+    Body: file.buffer,
+    ContentType: file.mimetype,
+  };
+
+  await s3.send(new PutObjectCommand(uploadParams));
+  return `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
+};
+
 // Lấy toàn bộ danh sách món ăn
 export const listFood = async (req, res) => {
   try {
@@ -13,14 +43,13 @@ export const listFood = async (req, res) => {
 // 🔍 Tìm kiếm món ăn theo tên hoặc mô tả
 export const searchFoods = async (req, res) => {
   try {
-    const { q } = req.query; // lấy từ query string ?q=pizza
+    const { q } = req.query;
     if (!q) {
       return res
         .status(400)
         .json({ success: false, message: "Thiếu từ khóa tìm kiếm" });
     }
 
-    // tìm theo name hoặc description (không phân biệt hoa thường)
     const results = await Food.find({
       $or: [
         { name: { $regex: q, $options: "i" } },
@@ -36,41 +65,48 @@ export const searchFoods = async (req, res) => {
 
 export const getFoodById = async (req, res) => {
   try {
-    const food = await Food.findById(req.params.id).populate(
-      "categoryId",
-      "name"
-    );
+    const food = await Food.findById(req.params.id).populate("categoryId", "name");
     if (!food) {
       return res.status(404).json({ message: "Không tìm thấy món ăn" });
     }
-    res.json(food); // 👈 trả về trực tiếp object food
+    res.json(food);
   } catch (err) {
     console.error("Error fetching food:", err);
     res.status(500).json({ message: "Lỗi server", error: err.message });
   }
 };
-// Thêm món
+
+// ➕ Thêm món ăn (upload ảnh S3)
 export const createFood = async (req, res) => {
   try {
+    console.log("📦 req.body:", req.body);
+    console.log("🖼️ req.file:", req.file);
+
     const { name, description, price, categoryId } = req.body;
-    // const image = req.file ? "images/" + req.file.filename : "";
-    const image = req.file ? "uploads/" + req.file.filename : "";
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Thiếu file ảnh" });
+    }
+
+    const imageUrl = await uploadToS3(req.file);
+
     const newFood = new Food({
       name,
       description,
       price,
-      image,
+      image: imageUrl,
       categoryId,
     });
 
     await newFood.save();
-    res.json({ success: true, data: newFood });
+    res.json({ success: true, message: "Thêm sản phẩm thành công", data: newFood });
   } catch (error) {
+    console.error("❌ Lỗi khi thêm món:", error);
     res.status(400).json({ success: false, message: error.message });
   }
 };
 
-// Cập nhật món
+// ✏️ Cập nhật món ăn
 export const updateFood = async (req, res) => {
   try {
     const { id } = req.params;
@@ -78,7 +114,8 @@ export const updateFood = async (req, res) => {
     const updateData = { name, description, price, categoryId };
 
     if (req.file) {
-      updateData.image = "images/" + req.file.filename;
+      const imageUrl = await uploadToS3(req.file);
+      updateData.image = imageUrl;
     }
 
     const updated = await Food.findByIdAndUpdate(id, updateData, { new: true });
@@ -88,23 +125,25 @@ export const updateFood = async (req, res) => {
   }
 };
 
-// Xoá món
+// ❌ Xoá món ăn (và xoá ảnh khỏi S3 nếu có)
 export const deleteFood = async (req, res) => {
   try {
-    const id = req.params.id || req.body.id; // ✅ hỗ trợ cả hai kiểu
+    const id = req.params.id || req.body.id;
     if (!id) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Thiếu id món ăn" });
+      return res.status(400).json({ success: false, message: "Thiếu id món ăn" });
     }
 
     const deleted = await Food.findByIdAndDelete(id);
     if (!deleted) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Không tìm thấy món ăn" });
+      return res.status(404).json({ success: false, message: "Không tìm thấy món ăn" });
     }
-    fs.unlink(`uploads/${deleted.image}`, () => {});
+
+    // Nếu ảnh là từ S3 → xoá ảnh khỏi bucket
+    if (deleted.image && deleted.image.includes(BUCKET_NAME)) {
+      const key = deleted.image.split(".amazonaws.com/")[1];
+      await s3.send(new DeleteObjectCommand({ Bucket: BUCKET_NAME, Key: key }));
+    }
+
     res.json({ success: true, message: "Đã xoá món ăn" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
