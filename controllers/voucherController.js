@@ -110,6 +110,7 @@ export const redeemVoucher = async (req, res) => {
       voucher: {
         code: voucher.code,
         discountPercent: voucher.discountPercent,
+        expiryDate: voucher.expiryDate,
       },
     });
   } catch (error) {

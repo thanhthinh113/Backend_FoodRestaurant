@@ -1,5 +1,9 @@
 import Food from "../models/foodModel.js";
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
 import fs from "fs";
 import dotenv from "dotenv";
 dotenv.config();
@@ -65,7 +69,10 @@ export const searchFoods = async (req, res) => {
 
 export const getFoodById = async (req, res) => {
   try {
-    const food = await Food.findById(req.params.id).populate("categoryId", "name");
+    const food = await Food.findById(req.params.id).populate(
+      "categoryId",
+      "name"
+    );
     if (!food) {
       return res.status(404).json({ message: "Không tìm thấy món ăn" });
     }
@@ -85,7 +92,9 @@ export const createFood = async (req, res) => {
     const { name, description, price, categoryId } = req.body;
 
     if (!req.file) {
-      return res.status(400).json({ success: false, message: "Thiếu file ảnh" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Thiếu file ảnh" });
     }
 
     const imageUrl = await uploadToS3(req.file);
@@ -99,7 +108,11 @@ export const createFood = async (req, res) => {
     });
 
     await newFood.save();
-    res.json({ success: true, message: "Thêm sản phẩm thành công", data: newFood });
+    res.json({
+      success: true,
+      message: "Thêm sản phẩm thành công",
+      data: newFood,
+    });
   } catch (error) {
     console.error("❌ Lỗi khi thêm món:", error);
     res.status(400).json({ success: false, message: error.message });
@@ -130,12 +143,16 @@ export const deleteFood = async (req, res) => {
   try {
     const id = req.params.id || req.body.id;
     if (!id) {
-      return res.status(400).json({ success: false, message: "Thiếu id món ăn" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Thiếu id món ăn" });
     }
 
     const deleted = await Food.findByIdAndDelete(id);
     if (!deleted) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy món ăn" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy món ăn" });
     }
 
     // Nếu ảnh là từ S3 → xoá ảnh khỏi bucket
