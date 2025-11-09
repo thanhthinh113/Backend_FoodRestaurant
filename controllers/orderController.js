@@ -1,6 +1,8 @@
 import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
 import Stripe from "stripe";
+import { sendOrderStatusUpdate } from "../socket.js";
+import notificationModel from "../models/notificationModel.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -245,19 +247,38 @@ const listOrders = async (req, res) => {
 
 const updateStatus = async (req, res) => {
   try {
-    await orderModel.findByIdAndUpdate(req.body.orderId, {
-      status: req.body.status,
+    const { orderId, status } = req.body;
+
+    const order = await orderModel.findByIdAndUpdate(
+      orderId,
+      { status },
+      { new: true }
+    );
+
+    if (!order)
+      return res.json({ success: false, message: "Không tìm thấy đơn hàng" });
+
+    // 1️⃣ Tạo notification
+    const notification = await notificationModel.create({
+      userId: order.userId,
+      message: `Đơn hàng #${order._id} đã chuyển sang trạng thái: ${status}`,
     });
+
+    // 2️⃣ Gửi real-time
+    sendOrderStatusUpdate(order.userId.toString(), {
+      id: notification._id,
+      message: notification.message,
+      read: notification.read,
+      createdAt: notification.createdAt,
+    });
+
     res.json({
       success: true,
       message: "Trạng thái đơn hàng đã được cập nhật",
     });
   } catch (error) {
     console.log("❌ Lỗi updateStatus:", error);
-    res.json({
-      success: false,
-      message: "Lỗi cập nhật trạng thái đơn hành",
-    });
+    res.json({ success: false, message: "Lỗi cập nhật trạng thái đơn hàng" });
   }
 };
 
