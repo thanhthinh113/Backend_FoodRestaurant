@@ -3,6 +3,7 @@ import userModel from "../models/userModel.js";
 import foodModel from "../models/foodModel.js";
 import categoryModel from "../models/categoryModel.js";
 import voucherModel from "../models/voucherModel.js";
+import contactModel from "../models/contactModel.js";
 
 export const getSummary = async (req, res) => {
   try {
@@ -13,12 +14,14 @@ export const getSummary = async (req, res) => {
       totalFoods,
       totalCategories,
       totalVouchers,
+      totalContacts,
     ] = await Promise.all([
       userModel.countDocuments(),
       orderModel.countDocuments(),
       foodModel.countDocuments(),
       categoryModel.countDocuments(),
       voucherModel.countDocuments(),
+      contactModel.countDocuments(),
     ]);
 
     // DOANH THU ---
@@ -138,6 +141,7 @@ export const getSummary = async (req, res) => {
           foods: totalFoods,
           categories: totalCategories,
           vouchers: totalVouchers,
+          contacts: totalContacts,
         },
         revenue: totalRevenue,
         orderStatus: statusCounts,
