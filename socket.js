@@ -8,6 +8,7 @@ export const initSocket = (server) => {
       origin: process.env.FRONTEND_URL, // FE URL
       methods: ["GET", "POST"],
     },
+    transports: ["websocket", "polling"],
   });
 
   io.on("connection", (socket) => {
