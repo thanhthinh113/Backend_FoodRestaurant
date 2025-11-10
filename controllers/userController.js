@@ -43,7 +43,7 @@ const registerUser = async (req, res) => {
         // ⚡ Gửi lại OTP (BỎ 'await')
         transporter
           .sendMail({
-            from: process.env.EMAIL_USER,
+            from: `"Tomato Store" <thanhthinh110823@gmail.com>`,
             to: email,
             subject: "Mã xác thực tài khoản",
             html: `
@@ -80,7 +80,7 @@ const registerUser = async (req, res) => {
     // ⚡ Gửi OTP mới (BỎ 'await')
     transporter
       .sendMail({
-        from: process.env.EMAIL_USER,
+        from: `"Tomato Store" <thanhthinh110823@gmail.com>`,
         to: email,
         subject: "Mã xác thực tài khoản",
         html: `
@@ -308,7 +308,7 @@ const forgotPassword = async (req, res) => {
     // ⚡ Gửi OTP đặt lại mật khẩu (BỎ 'await')
     transporter
       .sendMail({
-        from: process.env.EMAIL_USER,
+        from: `"Tomato Store" <thanhthinh110823@gmail.com>`,
         to: email,
         subject: "Đặt lại mật khẩu tài khoản",
         html: `

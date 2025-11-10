@@ -32,7 +32,7 @@ export const sendContactForm = async (req, res) => {
     // 2. ⚡ Gửi email bất đồng bộ (BỎ 'await')
     transporter
       .sendMail({
-        from: `"Liên hệ Tomato" <${process.env.EMAIL_USER}>`,
+        from: `"Liên hệ Tomato" <thanhthinh110823@gmail.com>`,
         to: process.env.EMAIL_USER, // Gửi cho Admin
         subject: `[Liên hệ] ${subject}`,
         html: `
@@ -120,7 +120,7 @@ export const replyContact = async (req, res) => {
     // 2. ⚡ Gửi email bất đồng bộ (BỎ 'await')
     transporter
       .sendMail({
-        from: `"Phản hồi từ Tomato 🍅" <${process.env.EMAIL_USER}>`,
+        from: `"Phản hồi từ Tomato 🍅" <thanhthinh110823@gmail.com>`,
         to: contact.email,
         subject: `Phản hồi: ${contact.subject}`,
         html: `
