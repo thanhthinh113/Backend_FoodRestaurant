@@ -5,6 +5,7 @@ import validator from "validator";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
 import pendingUserModel from "../models/pendingUserModel.js";
+import sendGridTransport from "nodemailer-sendgrid-transport";
 const createToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };

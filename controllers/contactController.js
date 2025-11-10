@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 import contactModel from "../models/contactModel.js";
-
+import sendGridTransport from "nodemailer-sendgrid-transport";
 // 1. 🛑 TỐI ƯU HÓA: KHỞI TẠO TRANSPORTER MỘT LẦN KHI SERVER KHỞI ĐỘNG
 const transporter = nodemailer.createTransport(
   sendGridTransport({
