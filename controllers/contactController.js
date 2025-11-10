@@ -21,10 +21,12 @@ export const sendContactForm = async (req, res) => {
 
     // 📧 Gửi email cho admin (tùy chọn)
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com", // ⬅️ Host
+      port: 465, // ⬅️ Port
+      secure: true, // ⬅️ Bắt buộc phải là true cho port 465 (SSL/TLS)
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        pass: process.env.EMAIL_PASS, // PHẢI LÀ MẬT KHẨU ỨNG DỤNG
       },
     });
 
