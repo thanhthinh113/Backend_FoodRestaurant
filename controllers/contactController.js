@@ -2,15 +2,13 @@ import nodemailer from "nodemailer";
 import contactModel from "../models/contactModel.js";
 
 // 1. 🛑 TỐI ƯU HÓA: KHỞI TẠO TRANSPORTER MỘT LẦN KHI SERVER KHỞI ĐỘNG
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com", // Host được chỉ định rõ ràng
-  port: 465, // Port SSL
-  secure: true, // Bắt buộc cho port 465
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // PHẢI LÀ MẬT KHẨU ỨNG DỤNG
-  },
-});
+const transporter = nodemailer.createTransport(
+  sendGridTransport({
+    auth: {
+      api_key: process.env.SENDGRID_API_KEY, // ⬅️ Dùng API Key mới
+    },
+  })
+);
 
 // 1. Gửi Form Liên Hệ (Đã tối ưu tốc độ)
 export const sendContactForm = async (req, res) => {

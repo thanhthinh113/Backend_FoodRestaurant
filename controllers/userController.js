@@ -8,15 +8,13 @@ import pendingUserModel from "../models/pendingUserModel.js";
 const createToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com", // ⬅️ Host
-  port: 465, // ⬅️ Port
-  secure: true, // ⬅️ Bắt buộc phải là true cho port 465 (SSL/TLS)
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // PHẢI LÀ MẬT KHẨU ỨNG DỤNG
-  },
-});
+const transporter = nodemailer.createTransport(
+  sendGridTransport({
+    auth: {
+      api_key: process.env.SENDGRID_API_KEY, // ⬅️ Dùng API Key mới
+    },
+  })
+);
 
 const registerUser = async (req, res) => {
   const { name, email, password } = req.body;
