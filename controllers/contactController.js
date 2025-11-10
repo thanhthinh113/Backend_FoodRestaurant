@@ -1,16 +1,6 @@
 import nodemailer from "nodemailer";
 import contactModel from "../models/contactModel.js";
-import sendGridTransport from "nodemailer-sendgrid-transport";
-// 1. 🛑 TỐI ƯU HÓA: KHỞI TẠO TRANSPORTER MỘT LẦN KHI SERVER KHỞI ĐỘNG
-const transporter = nodemailer.createTransport(
-  sendGridTransport({
-    auth: {
-      api_key: process.env.SENDGRID_API_KEY, // ⬅️ Dùng API Key mới
-    },
-  })
-);
 
-// 1. Gửi Form Liên Hệ (Đã tối ưu tốc độ)
 export const sendContactForm = async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
@@ -21,7 +11,7 @@ export const sendContactForm = async (req, res) => {
         .json({ success: false, message: "Thiếu thông tin cần thiết." });
     }
 
-    // 🧾 Lưu vào MongoDB (Vẫn chờ hoàn tất)
+    // 🧾 Lưu vào MongoDB
     const newContact = await contactModel.create({
       name,
       email,
@@ -29,13 +19,21 @@ export const sendContactForm = async (req, res) => {
       message,
     });
 
-    // 2. ⚡ Gửi email bất đồng bộ (BỎ 'await')
-    transporter
-      .sendMail({
-        from: `"Liên hệ Tomato" <thanhthinh110823@gmail.com>`,
-        to: process.env.EMAIL_USER, // Gửi cho Admin
-        subject: `[Liên hệ] ${subject}`,
-        html: `
+    // 📧 Gửi email cho admin (tùy chọn)
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `"Liên hệ Tomato" <${process.env.EMAIL_USER}>`,
+      to: process.env.EMAIL_USER,
+      subject: `[Liên hệ] ${subject}`,
+      html: `
         <h3>Khách hàng mới gửi liên hệ:</h3>
         <p><b>Tên:</b> ${name}</p>
         <p><b>Email:</b> ${email}</p>
@@ -45,24 +43,22 @@ export const sendContactForm = async (req, res) => {
         <hr/>
         <p><i>Được gửi tự động từ hệ thống Tomato.</i></p>
       `,
-      })
-      .catch((err) => console.error("❌ Lỗi khi gửi liên hệ (Admin):", err)); // Xử lý lỗi mail riêng
+    });
 
-    // ✅ Phản hồi thành công NGAY LẬP TỨC sau khi lưu DB
     return res.json({
       success: true,
       message: "Đã gửi liên hệ thành công. Cảm ơn bạn đã góp ý!",
       data: newContact,
     });
   } catch (err) {
-    console.error("❌ Lỗi khi xử lý sendContactForm:", err);
+    console.error("Lỗi khi gửi liên hệ:", err);
     return res
       .status(500)
       .json({ success: false, message: "Lỗi máy chủ, vui lòng thử lại." });
   }
 };
 
-// 2. Lấy danh sách Contact (Thiếu trong code bạn gửi, bổ sung)
+// (Tuỳ chọn) Admin có thể lấy danh sách contact
 export const getAllContacts = async (req, res) => {
   try {
     const contacts = await contactModel.find().sort({ createdAt: -1 });
@@ -74,7 +70,7 @@ export const getAllContacts = async (req, res) => {
   }
 };
 
-// 3. Cập nhật trạng thái (Thiếu trong code bạn gửi, bổ sung)
+// ✅ Cập nhật trạng thái (ví dụ: new → viewed)
 export const updateContactStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -100,10 +96,10 @@ export const updateContactStatus = async (req, res) => {
   }
 };
 
-// 4. Admin phản hồi lại email người dùng (Đã tối ưu tốc độ)
+// ✉️ Admin phản hồi lại email người dùng
 export const replyContact = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params; // id tin nhắn
     const { replyMessage } = req.body;
 
     if (!replyMessage)
@@ -117,13 +113,20 @@ export const replyContact = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Không tìm thấy liên hệ." });
 
-    // 2. ⚡ Gửi email bất đồng bộ (BỎ 'await')
-    transporter
-      .sendMail({
-        from: `"Phản hồi từ Tomato 🍅" <thanhthinh110823@gmail.com>`,
-        to: contact.email,
-        subject: `Phản hồi: ${contact.subject}`,
-        html: `
+    // 📧 Gửi email phản hồi
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `"Phản hồi từ Tomato 🍅" <${process.env.EMAIL_USER}>`,
+      to: contact.email,
+      subject: `Phản hồi: ${contact.subject}`,
+      html: `
         <p>Xin chào <b>${contact.name}</b>,</p>
         <p>Phản hồi từ bộ phận hỗ trợ Tomato:</p>
         <div style="background:#f8f8f8;padding:10px;border-radius:8px;">
@@ -132,22 +135,20 @@ export const replyContact = async (req, res) => {
         <hr/>
         <p><i>Trân trọng,<br/>Đội ngũ Tomato.</i></p>
       `,
-      })
-      .catch((err) => console.error("❌ Lỗi khi gửi phản hồi (User):", err)); // Xử lý lỗi mail riêng
+    });
 
-    // 🗃️ Cập nhật trạng thái (Vẫn chờ hoàn tất)
+    // 🗃️ Cập nhật trạng thái
     contact.status = "replied";
     contact.replyMessage = replyMessage;
     await contact.save();
 
-    // ✅ Phản hồi thành công NGAY LẬP TỨC
     return res.json({
       success: true,
       message: "Đã gửi phản hồi thành công!",
       data: contact,
     });
   } catch (err) {
-    console.error("❌ Lỗi khi xử lý replyContact:", err);
+    console.error("Lỗi khi phản hồi:", err);
     res.status(500).json({ success: false, message: "Lỗi khi gửi phản hồi." });
   }
 };
