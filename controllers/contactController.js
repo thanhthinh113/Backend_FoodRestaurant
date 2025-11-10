@@ -12,6 +12,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// 1. Gửi Form Liên Hệ (Đã tối ưu tốc độ)
 export const sendContactForm = async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
@@ -30,7 +31,7 @@ export const sendContactForm = async (req, res) => {
       message,
     });
 
-    // 2. ⚡ TỐI ƯU HÓA: Gửi email bất đồng bộ (BỎ 'await')
+    // 2. ⚡ Gửi email bất đồng bộ (BỎ 'await')
     transporter
       .sendMail({
         from: `"Liên hệ Tomato" <${process.env.EMAIL_USER}>`,
@@ -63,9 +64,45 @@ export const sendContactForm = async (req, res) => {
   }
 };
 
-// ... Các hàm getAllContacts và updateContactStatus giữ nguyên ...
+// 2. Lấy danh sách Contact (Thiếu trong code bạn gửi, bổ sung)
+export const getAllContacts = async (req, res) => {
+  try {
+    const contacts = await contactModel.find().sort({ createdAt: -1 });
+    res.json({ success: true, data: contacts });
+  } catch (err) {
+    res
+      .status(500)
+      .json({ success: false, message: "Lỗi khi lấy danh sách liên hệ." });
+  }
+};
 
-// ✉️ Admin phản hồi lại email người dùng
+// 3. Cập nhật trạng thái (Thiếu trong code bạn gửi, bổ sung)
+export const updateContactStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const contact = await contactModel.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    if (!contact)
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy tin nhắn." });
+
+    res.json({ success: true, data: contact });
+  } catch (err) {
+    console.error("Lỗi cập nhật trạng thái:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Không thể cập nhật trạng thái." });
+  }
+};
+
+// 4. Admin phản hồi lại email người dùng (Đã tối ưu tốc độ)
 export const replyContact = async (req, res) => {
   try {
     const { id } = req.params;
@@ -82,7 +119,7 @@ export const replyContact = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Không tìm thấy liên hệ." });
 
-    // 2. ⚡ TỐI ƯU HÓA: Gửi email bất đồng bộ (BỎ 'await')
+    // 2. ⚡ Gửi email bất đồng bộ (BỎ 'await')
     transporter
       .sendMail({
         from: `"Phản hồi từ Tomato 🍅" <${process.env.EMAIL_USER}>`,
