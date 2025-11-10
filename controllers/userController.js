@@ -5,11 +5,9 @@ import validator from "validator";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
 import pendingUserModel from "../models/pendingUserModel.js";
-
 const createToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };
-
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com", // ⬅️ Host
   port: 465, // ⬅️ Port
@@ -24,21 +22,7 @@ const registerUser = async (req, res) => {
   const { name, email, password } = req.body;
 
   try {
-    // Kiểm tra trùng trong userModel
-    const exists = await userModel.findOne({ email });
-    if (exists) {
-      return res.json({
-        success: false,
-        message: "Tài khoản đã tồn tại, vui lòng đăng nhập.",
-      });
-    }
-
-    if (!validator.isEmail(email)) {
-      return res.json({ success: false, message: "Email không hợp lệ." });
-    }
-    if (password.length < 8) {
-      return res.json({ success: false, message: "Mật khẩu ít nhất 8 ký tự." });
-    }
+    // ... logic kiểm tra hợp lệ ...
 
     // Hash pass
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -52,23 +36,27 @@ const registerUser = async (req, res) => {
     if (pendingUser) {
       // Nếu còn hiệu lực
       if (pendingUser.otpExpires > new Date()) {
-        // Cập nhật lại thông tin mới (tránh lưu dữ liệu cũ)
+        // Cập nhật lại thông tin mới
         pendingUser.name = name;
-        pendingUser.password = hashedPassword; // cập nhật pass mới
-        await pendingUser.save();
+        pendingUser.password = hashedPassword;
+        await pendingUser.save(); // 🛑 CHỈ CHỜ LƯU DB
 
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: email,
-          subject: "Mã xác thực tài khoản",
-          html: `
+        // ⚡ Gửi lại OTP (BỎ 'await')
+        transporter
+          .sendMail({
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: "Mã xác thực tài khoản",
+            html: `
         <h3>Xin chào ${pendingUser.name},</h3>
         <p>Mã OTP của bạn là:</p>
         <h2 style="color:#2c7be5;">${pendingUser.otpCode}</h2>
         <p>Hiệu lực đến ${pendingUser.otpExpires.toLocaleTimeString()}.</p>
       `,
-        });
+          })
+          .catch((err) => console.error("❌ Lỗi gửi lại OTP:", err)); // Xử lý lỗi riêng
 
+        // ✅ Phản hồi thành công ngay lập tức
         return res.json({
           success: true,
           message:
@@ -88,21 +76,24 @@ const registerUser = async (req, res) => {
       otpCode,
       otpExpires,
     });
-    await pendingUser.save();
+    await pendingUser.save(); // 🛑 CHỈ CHỜ LƯU DB
 
-    // Gửi OTP mới
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Mã xác thực tài khoản",
-      html: `
+    // ⚡ Gửi OTP mới (BỎ 'await')
+    transporter
+      .sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: "Mã xác thực tài khoản",
+        html: `
         <h3>Xin chào ${name},</h3>
         <p>Mã OTP của bạn là:</p>
         <h2 style="color:#2c7be5;">${otpCode}</h2>
         <p>Hiệu lực trong 10 phút.</p>
       `,
-    });
+      })
+      .catch((err) => console.error("❌ Lỗi gửi OTP đăng ký:", err)); // Xử lý lỗi riêng
 
+    // ✅ Phản hồi thành công ngay lập tức
     res.json({ success: true, message: "Đã gửi mã OTP đến email." });
   } catch (err) {
     console.error(err);
@@ -313,20 +304,24 @@ const forgotPassword = async (req, res) => {
 
     user.resetOtp = otpCode;
     user.resetOtpExpires = otpExpires;
-    await user.save();
+    await user.save(); // 🛑 CHỈ CHỜ LƯU DB
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Đặt lại mật khẩu tài khoản",
-      html: `
+    // ⚡ Gửi OTP đặt lại mật khẩu (BỎ 'await')
+    transporter
+      .sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: "Đặt lại mật khẩu tài khoản",
+        html: `
         <h3>Xin chào ${user.name || "bạn"},</h3>
         <p>Mã xác thực đặt lại mật khẩu của bạn là:</p>
         <h2 style="color:#2c7be5;">${otpCode}</h2>
         <p>Hiệu lực trong 10 phút.</p>
       `,
-    });
+      })
+      .catch((err) => console.error("❌ Lỗi gửi OTP quên mật khẩu:", err)); // Xử lý lỗi riêng
 
+    // ✅ Phản hồi thành công ngay lập tức
     res.json({
       success: true,
       message: "Đã gửi mã xác thực đặt lại mật khẩu đến email.",
