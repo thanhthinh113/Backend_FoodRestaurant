@@ -5,7 +5,7 @@ let io;
 export const initSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: process.env.FRONTEND_URL, // FE URL
+      origin: "https://frontend-mu-one-83.vercel.app/", // FE URL
       methods: ["GET", "POST"],
     },
     transports: ["websocket", "polling"],
