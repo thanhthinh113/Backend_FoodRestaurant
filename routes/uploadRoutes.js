@@ -1,9 +1,21 @@
+// routes/uploadRoutes.js
 import express from "express";
-import { getUploadUrl } from "../controllers/uploadController.js";
+import { generateUploadURL } from "../config/s3.js";
 
 const router = express.Router();
 
-// FE gọi: GET /api/upload-url?fileName=abc.jpg&fileType=image/jpeg
-router.get("/upload-url", getUploadUrl);
+router.get("/upload-url", async (req, res) => {
+  try {
+    const { fileName, fileType } = req.query;
+    const uploadUrl = await generateUploadURL(fileName, fileType);
+
+    // ✅ Tạo URL public (đường dẫn thực tế tới S3)
+    const fileUrl = `https://iamge-food.s3.us-east-1.amazonaws.com/${fileName}`;
+
+    res.json({ uploadUrl, fileUrl }); // ✅ gửi cả 2 về FE
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi tạo URL upload", error: err.message });
+  }
+});
 
 export default router;

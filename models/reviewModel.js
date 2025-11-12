@@ -11,6 +11,7 @@ const reviewSchema = new mongoose.Schema({
   },
   rating: { type: Number, min: 1, max: 5, required: true },
   comment: { type: String, default: "" },
+  media: { type: String, default: null }, // ✅ thêm dòng này để lưu URL ảnh/video
   createdAt: { type: Date, default: Date.now },
 });
 
