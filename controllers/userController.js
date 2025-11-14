@@ -11,9 +11,7 @@ const createToken = (id) => {
 };
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
+  service: "gmail",
 
   auth: {
     user: process.env.EMAIL_USER,
@@ -59,7 +57,7 @@ const registerUser = async (req, res) => {
         await pendingUser.save();
 
         await transporter.sendMail({
-          from: process.env.EMAIL_USER,
+          from: `"Hỗ trợ Tomato 🍅" <${process.env.EMAIL_USER}>`,
           to: email,
           subject: "Mã xác thực tài khoản",
           html: `
