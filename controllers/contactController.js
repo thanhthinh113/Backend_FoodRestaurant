@@ -24,7 +24,7 @@ export const sendContactForm = async (req, res) => {
     // Gửi mail tới admin qua Resend
     await resend.emails.send({
       // ✅ FROM: Dùng email no-reply của tên miền (phải được xác minh)
-      from: `Tomato Contact <${process.env.DOMAIN_EMAIL_NOREPLY}>`,
+      from: `Tomato Contact 🍅 <${process.env.DOMAIN_EMAIL_NOREPLY}>`,
       // ✅ TO: Gửi tới email cá nhân/Gmail của Admin
       to: process.env.EMAIL_USER,
       subject: `[Liên hệ mới] ${subject}`,
@@ -113,7 +113,7 @@ export const replyContact = async (req, res) => {
 
     // Gửi mail qua Resend
     await resend.emails.send({
-      from: `Tomato Support <${process.env.DOMAIN_EMAIL_ADMIN}>`,
+      from: `Tomato Support 🍅 <${process.env.DOMAIN_EMAIL_ADMIN}>`,
       to: contact.email,
       subject: `Phản hồi: ${contact.subject}`,
       html: `

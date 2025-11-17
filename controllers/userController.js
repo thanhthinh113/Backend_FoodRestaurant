@@ -2,28 +2,42 @@ import userModel from "../models/userModel.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import validator from "validator";
-import nodemailer from "nodemailer";
-import crypto from "crypto";
+
 import pendingUserModel from "../models/pendingUserModel.js";
+
+import { Resend } from "resend";
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const createToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const sendOTPEmail = async (toEmail, name, otpCode, subject) => {
+  try {
+    await resend.emails.send({
+      // Dùng địa chỉ email chuyên nghiệp đã xác minh trên Resend
+      from: `Tomato Support 🍅 <${process.env.DOMAIN_EMAIL_NOREPLY}>`,
+      to: [toEmail],
+      subject: subject,
+      html: `
+        <h3>Xin chào ${name || "bạn"},</h3>
+        <p>Mã xác thực của bạn là:</p>
+        <h2 style="color:#2c7be5;">${otpCode}</h2>
+        <p>Mã có hiệu lực trong 10 phút.</p>
+      `,
+    });
+    return true;
+  } catch (error) {
+    console.error("Lỗi khi gửi email Resend:", error);
+    return false;
+  }
+};
 
 const registerUser = async (req, res) => {
   const { name, email, password } = req.body;
 
   try {
-    // Kiểm tra trùng trong userModel
+    // 1. Kiểm tra dữ liệu (Giữ nguyên)
     const exists = await userModel.findOne({ email });
     if (exists) {
       return res.json({
@@ -39,47 +53,42 @@ const registerUser = async (req, res) => {
       return res.json({ success: false, message: "Mật khẩu ít nhất 8 ký tự." });
     }
 
-    // Hash pass
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Kiểm tra email trong pendingUser
+    // 2. Xử lý Pending User (Giữ nguyên)
     let pendingUser = await pendingUserModel.findOne({ email });
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 phút
 
     if (pendingUser) {
-      // Nếu còn hiệu lực
       if (pendingUser.otpExpires > new Date()) {
-        // Cập nhật lại thông tin mới (tránh lưu dữ liệu cũ)
         pendingUser.name = name;
-        pendingUser.password = hashedPassword; // cập nhật pass mới
+        pendingUser.password = hashedPassword;
         await pendingUser.save();
 
-        await transporter.sendMail({
-          from: `"Hỗ trợ Tomato 🍅" <${process.env.EMAIL_USER}>`,
-          to: email,
-          subject: "Mã xác thực tài khoản",
-          html: `
-        <h3>Xin chào ${pendingUser.name},</h3>
-        <p>Mã OTP của bạn là:</p>
-        <h2 style="color:#2c7be5;">${pendingUser.otpCode}</h2>
-        <p>Hiệu lực đến ${pendingUser.otpExpires.toLocaleTimeString()}.</p>
-      `,
-        });
+        // ✅ Gửi lại OTP qua Resend (Sử dụng hàm mới)
+        const emailSent = await sendOTPEmail(
+          email,
+          pendingUser.name,
+          pendingUser.otpCode,
+          "Mã xác thực tài khoản"
+        );
 
-        return res.json({
-          success: true,
-          message:
-            "OTP vẫn còn hiệu lực, đã gửi lại mã và cập nhật thông tin mới.",
-        });
+        if (emailSent) {
+          return res.json({
+            success: true,
+            message:
+              "OTP vẫn còn hiệu lực, đã gửi lại mã và cập nhật thông tin mới.",
+          });
+        }
+        throw new Error("Gửi OTP thất bại.");
       }
 
-      // Nếu hết hạn → xóa pending cũ
       await pendingUserModel.deleteOne({ email });
     }
 
-    // Tạo pending mới
+    // 3. Tạo pending mới và gửi OTP mới
     pendingUser = new pendingUserModel({
       name,
       email,
@@ -89,20 +98,24 @@ const registerUser = async (req, res) => {
     });
     await pendingUser.save();
 
-    // Gửi OTP mới
-    await transporter.sendMail({
-      from: `"Hỗ trợ Tomato 🍅" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: "Mã xác thực tài khoản",
-      html: `
-        <h3>Xin chào ${name},</h3>
-        <p>Mã OTP của bạn là:</p>
-        <h2 style="color:#2c7be5;">${otpCode}</h2>
-        <p>Hiệu lực trong 10 phút.</p>
-      `,
-    });
+    // ✅ Gửi OTP mới qua Resend (Sử dụng hàm mới)
+    const emailSent = await sendOTPEmail(
+      email,
+      name,
+      otpCode,
+      "Mã xác thực tài khoản"
+    );
 
-    res.json({ success: true, message: "Đã gửi mã OTP đến email." });
+    if (emailSent) {
+      res.json({ success: true, message: "Đã gửi mã OTP đến email." });
+    } else {
+      // Xóa user pending nếu gửi mail thất bại
+      await pendingUserModel.deleteOne({ email });
+      res.json({
+        success: false,
+        message: "Đăng ký thất bại: Không gửi được mã OTP.",
+      });
+    }
   } catch (err) {
     console.error(err);
     res.json({ success: false, message: "Đăng ký thất bại." });
@@ -111,6 +124,7 @@ const registerUser = async (req, res) => {
 
 const verifyEmail = async (req, res) => {
   const { email, otpCode } = req.body;
+  // ... (Hàm này giữ nguyên vì không gửi email) ...
   try {
     const pendingUser = await pendingUserModel.findOne({ email });
     if (!pendingUser) {
@@ -127,7 +141,6 @@ const verifyEmail = async (req, res) => {
       return res.json({ success: false, message: "Mã OTP đã hết hạn." });
     }
 
-    // Di chuyển từ pending sang user chính thức
     const user = new userModel({
       name: pendingUser.name,
       email: pendingUser.email,
@@ -136,7 +149,6 @@ const verifyEmail = async (req, res) => {
     });
     await user.save();
 
-    // Xóa pending user
     await pendingUserModel.deleteOne({ email });
 
     res.json({
@@ -314,22 +326,26 @@ const forgotPassword = async (req, res) => {
     user.resetOtpExpires = otpExpires;
     await user.save();
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Đặt lại mật khẩu tài khoản",
-      html: `
-        <h3>Xin chào ${user.name || "bạn"},</h3>
-        <p>Mã xác thực đặt lại mật khẩu của bạn là:</p>
-        <h2 style="color:#2c7be5;">${otpCode}</h2>
-        <p>Hiệu lực trong 10 phút.</p>
-      `,
-    });
+    // ✅ Gửi OTP Đặt lại mật khẩu qua Resend (Sử dụng hàm mới)
+    const emailSent = await sendOTPEmail(
+      email,
+      user.name,
+      otpCode,
+      "Đặt lại mật khẩu tài khoản"
+    );
 
-    res.json({
-      success: true,
-      message: "Đã gửi mã xác thực đặt lại mật khẩu đến email.",
-    });
+    if (emailSent) {
+      res.json({
+        success: true,
+        message: "Đã gửi mã xác thực đặt lại mật khẩu đến email.",
+      });
+    } else {
+      // Nếu gửi mail thất bại, reset lại OTP trong DB
+      user.resetOtp = null;
+      user.resetOtpExpires = null;
+      await user.save();
+      res.json({ success: false, message: "Gửi mã OTP thất bại." });
+    }
   } catch (err) {
     console.error(err);
     res.json({ success: false, message: "Gửi mã OTP thất bại." });
