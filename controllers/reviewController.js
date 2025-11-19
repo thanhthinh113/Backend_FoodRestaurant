@@ -4,9 +4,6 @@ import Order from "../models/orderModel.js";
 import { generateUploadURL } from "../config/s3.js";
 import { v4 as uuidv4 } from "uuid";
 
-/**
- * ✅ API cho phép FE xin pre-signed URL để upload file lên S3
- */
 export const getPresignedUrl = async (req, res) => {
   try {
     const { fileName, fileType } = req.body;
@@ -15,7 +12,6 @@ export const getPresignedUrl = async (req, res) => {
 
     const uniqueName = `${uuidv4()}-${fileName}`;
     const uploadUrl = await generateUploadURL(uniqueName, fileType);
-
     const fileUrl = `https://iamge-food.s3.us-east-1.amazonaws.com/${uniqueName}`;
 
     res.json({ uploadUrl, fileUrl });
@@ -25,9 +21,6 @@ export const getPresignedUrl = async (req, res) => {
   }
 };
 
-/**
- * ✅ Thêm đánh giá (FE chỉ gửi 1 media URL)
- */
 export const addReview = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
@@ -38,7 +31,6 @@ export const addReview = async (req, res) => {
     if (!foodId || !rating || !orderId)
       return res.status(400).json({ message: "Thiếu thông tin." });
 
-    // ✅ Kiểm tra đơn đã mua
     const order = await Order.findOne({
       _id: orderId,
       userId,
@@ -51,14 +43,12 @@ export const addReview = async (req, res) => {
         .status(403)
         .json({ message: "Bạn chỉ được đánh giá sản phẩm đã mua." });
 
-    // ✅ Chống đánh giá trùng
     const existingReview = await Review.findOne({ userId, foodId, orderId });
     if (existingReview)
       return res
         .status(403)
         .json({ message: "Bạn đã đánh giá món ăn này trong đơn hàng này." });
 
-    // ✅ Tạo review
     const review = new Review({
       foodId,
       userId,
@@ -66,11 +56,10 @@ export const addReview = async (req, res) => {
       orderId,
       rating,
       comment,
-      media: media || null, // chỉ lưu 1 URL
+      media: media || null,
     });
     await review.save();
 
-    // ✅ Cập nhật điểm trung bình
     const reviews = await Review.find({ foodId });
     const avg =
       reviews.reduce((sum, r) => sum + r.rating, 0) / (reviews.length || 1);
@@ -81,7 +70,7 @@ export const addReview = async (req, res) => {
       message: "Đánh giá thành công!",
       averageRating: avg.toFixed(1),
       totalReviews: reviews.length,
-      review, // gửi về review vừa tạo
+      review,
     });
   } catch (err) {
     console.error(err);
@@ -89,9 +78,6 @@ export const addReview = async (req, res) => {
   }
 };
 
-/**
- * ✅ Lấy danh sách review
- */
 export const getReviewsByFood = async (req, res) => {
   try {
     const { foodId } = req.params;
@@ -103,9 +89,6 @@ export const getReviewsByFood = async (req, res) => {
   }
 };
 
-/**
- * ✅ Kiểm tra quyền đánh giá
- */
 export const canReview = async (req, res) => {
   try {
     const userId = req.user?.id;
@@ -132,5 +115,46 @@ export const canReview = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Lỗi máy chủ" });
+  }
+};
+export const adminReply = async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    const { text } = req.body;
+
+    const review = await Review.findByIdAndUpdate(
+      reviewId,
+      {
+        reply: {
+          text,
+          adminName: req.user.name,
+          adminId: req.user._id,
+        },
+      },
+      { new: true }
+    );
+
+    res.json(review);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Lỗi gửi phản hồi" });
+  }
+};
+
+export const adminReaction = async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    const { reaction } = req.body;
+
+    const review = await Review.findByIdAndUpdate(
+      reviewId,
+      { reaction },
+      { new: true }
+    );
+
+    res.json(review);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Lỗi cập nhật reaction" });
   }
 };
