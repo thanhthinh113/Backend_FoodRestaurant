@@ -15,7 +15,6 @@ const placeOrder = async (req, res) => {
     let appliedVoucher = null;
     let coupon = null;
 
-    // 🔎 Kiểm tra voucher (nếu có)
     if (voucherCode) {
       const user = await userModel.findById(userId);
       appliedVoucher = user.redeemedVouchers.find(
@@ -36,7 +35,6 @@ const placeOrder = async (req, res) => {
         });
       }
 
-      // ✅ Giảm giá theo số tiền cố định (VD: 20000 VND)
       if (
         appliedVoucher.discountPercent &&
         appliedVoucher.discountPercent > 0
@@ -53,7 +51,6 @@ const placeOrder = async (req, res) => {
       }
     }
 
-    // 🧾 Tạo đơn hàng DB
     const newOrder = new orderModel({
       userId,
       items,
@@ -61,23 +58,20 @@ const placeOrder = async (req, res) => {
       address,
       voucherCode: appliedVoucher ? appliedVoucher.code : null,
       payment: false,
-      // status: "Đang chờ thanh toán",
     });
 
     await newOrder.save();
     await userModel.findByIdAndUpdate(userId, { cartData: {} });
 
-    // ⚙️ Danh sách sản phẩm
     const line_items = items.map((item) => ({
       price_data: {
         currency: "vnd",
         product_data: { name: item.name },
-        unit_amount: item.price, // Stripe yêu cầu số nguyên (VD: 20000 = 20,000₫)
+        unit_amount: item.price,
       },
       quantity: item.quantity,
     }));
 
-    // ⚙️ Thêm phí giao hàng
     line_items.push({
       price_data: {
         currency: "vnd",
@@ -87,7 +81,6 @@ const placeOrder = async (req, res) => {
       quantity: 1,
     });
 
-    // 🧾 Tạo session Stripe có giảm giá
     const sessionData = {
       line_items,
       mode: "payment",
@@ -101,10 +94,7 @@ const placeOrder = async (req, res) => {
         : {},
     };
 
-    // Nếu có voucher → thêm coupon giảm giá
-    if (coupon) {
-      sessionData.discounts = [{ coupon: coupon.id }];
-    }
+    if (coupon) sessionData.discounts = [{ coupon: coupon.id }];
 
     const session = await stripe.checkout.sessions.create(sessionData);
 
@@ -121,7 +111,6 @@ const placeOrder = async (req, res) => {
   }
 };
 
-// 🧩 Xác nhận thanh toán
 const verifyOrder = async (req, res) => {
   const { orderId, success } = req.body;
 
@@ -142,7 +131,6 @@ const verifyOrder = async (req, res) => {
 
       const earnedPoints = Math.floor(order.amount / 10000);
 
-      // ✅ Xử lý voucher (chỉ xóa 1 cái)
       if (order.voucherCode) {
         const user = await userModel.findById(order.userId);
 
@@ -151,11 +139,8 @@ const verifyOrder = async (req, res) => {
             (v) => v.code === order.voucherCode
           );
 
-          if (index !== -1) {
-            user.redeemedVouchers.splice(index, 1); // ❗️Xóa đúng 1 voucher thôi
-          }
+          if (index !== -1) user.redeemedVouchers.splice(index, 1);
 
-          // ✅ Cộng điểm
           user.points += earnedPoints;
 
           await user.save();
@@ -175,7 +160,6 @@ const verifyOrder = async (req, res) => {
         }
       }
 
-      // ❇️ Trường hợp không có voucher
       const updatedUser = await userModel
         .findByIdAndUpdate(
           order.userId,
@@ -184,37 +168,32 @@ const verifyOrder = async (req, res) => {
         )
         .select("-password");
 
-      res.json({
+      return res.json({
         success: true,
         message: "Thanh toán thành công, cộng điểm thưởng",
         earnedPoints,
         user: updatedUser,
       });
     } else {
-      // ❌ Nếu thanh toán thất bại thì xóa đơn hàng
       await orderModel.findByIdAndDelete(orderId);
-      res.json({
+      return res.json({
         success: false,
         message: "Thanh toán thất bại, đơn hàng bị xóa",
       });
     }
   } catch (error) {
     console.log("❌ Lỗi verifyOrder:", error);
-    res.json({ success: false, message: "Lỗi khi xác minh thanh toán" });
+    return res.json({
+      success: false,
+      message: "Lỗi khi xác minh thanh toán",
+    });
   }
 };
 
 const userOrders = async (req, res) => {
   try {
     const userId = req.user?.id || req.body.userId;
-
     const orders = await orderModel.find({ userId }).sort({ _id: -1 });
-
-    if (orders?.length > 0) {
-      console.log("🧾 Mẫu 1 order:", JSON.stringify(orders[0], null, 2));
-    } else {
-      console.log("⚠️ Không tìm thấy order nào cho userId:", userId);
-    }
 
     res.json({
       success: true,
@@ -232,16 +211,10 @@ const userOrders = async (req, res) => {
 const listOrders = async (req, res) => {
   try {
     const orders = await orderModel.find({});
-    res.json({
-      success: true,
-      orders,
-    });
+    res.json({ success: true, orders });
   } catch (error) {
     console.log("❌ Lỗi listOrders:", error);
-    res.json({
-      success: false,
-      message: "Error fetching orders",
-    });
+    res.json({ success: false, message: "Error fetching orders" });
   }
 };
 
@@ -258,13 +231,11 @@ const updateStatus = async (req, res) => {
     if (!order)
       return res.json({ success: false, message: "Không tìm thấy đơn hàng" });
 
-    // 1️⃣ Tạo notification
     const notification = await notificationModel.create({
       userId: order.userId,
       message: `Đơn hàng #${order._id} đã chuyển sang trạng thái: ${status}`,
     });
 
-    // 2️⃣ Gửi real-time
     sendOrderStatusUpdate(order.userId.toString(), {
       id: notification._id,
       message: notification.message,
