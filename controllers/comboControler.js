@@ -6,7 +6,6 @@ import {
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import dotenv from "dotenv";
-import Food from "../models/foodModel.js";
 dotenv.config();
 
 const s3 = new S3Client({
@@ -19,7 +18,7 @@ const s3 = new S3Client({
 
 const BUCKET_NAME = process.env.AWS_BUCKET_NAME;
 
-// Upload ảnh combo lên S3
+// 🧠 Upload ảnh combo lên S3
 const uploadToS3 = async (file) => {
   if (!file) return null;
   const fileName = `combos/${Date.now()}_${file.originalname}`;
@@ -33,53 +32,40 @@ const uploadToS3 = async (file) => {
   return `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
 };
 
-// Lấy danh sách combo (populate food details)
+// 📦 Lấy danh sách combo
 export const listCombos = async (req, res) => {
   try {
-    // populate nested food inside items
-    const combos = await Combo.find().populate("items.food");
+    const combos = await Combo.find().populate("items");
     res.json(combos);
   } catch (error) {
     res.status(500).json({ message: "Error fetching combos", error });
   }
 };
 
-// Tạo combo mới
+// ➕ Thêm combo mới (upload ảnh lên S3)
 export const createCombo = async (req, res) => {
   try {
     const { name, description, price, discountPrice, items } = req.body;
 
     const imageUrl = req.file ? await uploadToS3(req.file) : "";
 
-    // items expected as JSON string of [{ id, quantity }]
-    const parsedItems = items ? JSON.parse(items) : [];
-
-    // convert to stored format: { food: ObjectId, quantity }
-    const itemsToSave = parsedItems.map((it) => ({
-      food: it.id,
-      quantity: it.quantity || 1,
-    }));
-
     const combo = new Combo({
       name,
       description,
       price,
       discountPrice,
-      items: itemsToSave,
+      items: items ? JSON.parse(items) : [],
       image: imageUrl,
     });
 
     await combo.save();
-    // return populated combo
-    const saved = await Combo.findById(combo._id).populate("items.food");
-    res.json(saved);
+    res.json(combo);
   } catch (error) {
-    console.error("createCombo error:", error);
     res.status(400).json({ message: "Error creating combo", error });
   }
 };
 
-// Update combo
+// ✏️ Sửa combo
 export const updateCombo = async (req, res) => {
   try {
     const { id } = req.params;
@@ -89,6 +75,7 @@ export const updateCombo = async (req, res) => {
       description,
       price,
       discountPrice,
+      items: items ? JSON.parse(items) : [],
     };
 
     if (req.file) {
@@ -96,22 +83,14 @@ export const updateCombo = async (req, res) => {
       updateData.image = imageUrl;
     }
 
-    const parsedItems = items ? JSON.parse(items) : [];
-    updateData.items = parsedItems.map((it) => ({
-      food: it.id,
-      quantity: it.quantity || 1,
-    }));
-
     const combo = await Combo.findByIdAndUpdate(id, updateData, { new: true });
-    const populated = await Combo.findById(combo._id).populate("items.food");
-    res.json(populated);
+    res.json(combo);
   } catch (error) {
-    console.error("updateCombo error:", error);
     res.status(400).json({ message: "Error updating combo", error });
   }
 };
 
-// Delete combo
+// ❌ Xóa combo (và xoá ảnh khỏi S3)
 export const deleteCombo = async (req, res) => {
   try {
     const { id } = req.params;
