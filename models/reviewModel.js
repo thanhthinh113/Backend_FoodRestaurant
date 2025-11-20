@@ -13,29 +13,10 @@ const reviewSchema = new mongoose.Schema({
 
   rating: { type: Number, min: 1, max: 5, required: true },
   comment: { type: String, default: "" },
-
-  media: { type: String, default: null },
-
-  // ⭐ quản trị viên thêm cảm xúc
-  reaction: {
-    type: String,
-    enum: ["👍", "❤️", "😂", "😡", null],
-    default: null,
-  },
-
-  // ⭐ quản trị viên trả lời
-  reply: {
-    adminId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
-    adminName: { type: String, default: null },
-    text: { type: String, default: null },
-    createdAt: { type: Date, default: null },
-  },
+  media: { type: String, default: null }, // ✅ thêm dòng này để lưu URL ảnh/video
 
   createdAt: { type: Date, default: Date.now },
 });
-
-export default mongoose.model("Review", reviewSchema);
+const reviewModel =
+  mongoose.models.review || mongoose.model("review", reviewSchema);
+export default reviewModel;
