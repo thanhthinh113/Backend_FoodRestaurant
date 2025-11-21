@@ -2,23 +2,28 @@ import userModel from "../models/userModel.js";
 
 const addToCart = async (req, res) => {
   try {
-    let userData = await userModel.findById(req.body.userId);
-    let cartData = await userData.cartData;
-    if (!cartData[req.body.itemId]) {
-      cartData[req.body.itemId] = 1;
+    const { userId, itemId, quantity = 1 } = req.body;
+
+    const userData = await userModel.findById(userId);
+    const cartData = userData.cartData || {};
+
+    if (!cartData[itemId]) {
+      cartData[itemId] = quantity;
     } else {
-      cartData[req.body.itemId] += 1;
+      cartData[itemId] += quantity;
     }
-    await userModel.findByIdAndUpdate(req.body.userId, { cartData });
-    res.json({
+
+    await userModel.findByIdAndUpdate(userId, { cartData });
+
+    return res.json({
       success: true,
-      message: "Item added to cart successfully",
+      message: "Đồ ăn đã được thêm vào giỏ hàng",
     });
   } catch (error) {
     console.log(error);
-    res.json({
+    return res.json({
       success: false,
-      message: "Failed to add item to cart",
+      message: "Không thể thêm đồ ăn vào giỏ hàng",
     });
   }
 };
