@@ -72,6 +72,49 @@ export const getSummary = async (req, res) => {
       { $sort: { "_id.year": 1, "_id.month": 1 } },
     ]);
 
+    function getDateRangeOfWeek(week, year) {
+      const simple = new Date(year, 0, 1 + (week - 1) * 7);
+      const dow = simple.getDay();
+
+      // Điều chỉnh để tuần bắt đầu từ Thứ 2 (ISO week)
+      const ISOweekStart = simple;
+      if (dow <= 4)
+        ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+      else ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+
+      const start = new Date(ISOweekStart);
+      const end = new Date(ISOweekStart);
+      end.setDate(start.getDate() + 6);
+
+      return { start, end };
+    }
+
+    const weeklySales = await orderModel.aggregate([
+      { $match: { payment: true } },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            week: { $week: "$createdAt" },
+          },
+          totalRevenue: { $sum: "$amount" },
+          totalOrders: { $sum: 1 },
+        },
+      },
+      { $sort: { "_id.year": 1, "_id.week": 1 } },
+    ]);
+
+    // ⭐ Thêm ngày bắt đầu – kết thúc cho từng tuần
+    const weeklySalesWithDates = weeklySales.map((item) => {
+      const { start, end } = getDateRangeOfWeek(item._id.week, item._id.year);
+
+      return {
+        ...item,
+        startDate: start,
+        endDate: end,
+      };
+    });
+
     //  DOANH THU THEO DANH MỤC ---
     const categorySales = await orderModel.aggregate([
       { $match: { payment: true } },
@@ -149,6 +192,7 @@ export const getSummary = async (req, res) => {
         monthlySales,
         categorySales,
         voucherStats,
+        weeklySales: weeklySalesWithDates,
       },
     });
   } catch (error) {
