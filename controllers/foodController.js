@@ -89,7 +89,7 @@ export const createFood = async (req, res) => {
     console.log("📦 req.body:", req.body);
     console.log("🖼️ req.file:", req.file);
 
-    const { name, description, price, categoryId } = req.body;
+    const { name, description, price, categoryId, stock } = req.body;
 
     if (!req.file) {
       return res
@@ -105,6 +105,7 @@ export const createFood = async (req, res) => {
       price,
       image: imageUrl,
       categoryId,
+      stock: Number(stock) || 0,
     });
 
     await newFood.save();
@@ -123,8 +124,15 @@ export const createFood = async (req, res) => {
 export const updateFood = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, categoryId } = req.body;
-    const updateData = { name, description, price, categoryId };
+    const { name, description, price, categoryId, stock } = req.body;
+
+    const updateData = {};
+
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (price !== undefined) updateData.price = Number(price);
+    if (categoryId !== undefined) updateData.categoryId = categoryId;
+    if (stock !== undefined) updateData.stock = Number(stock);
 
     if (req.file) {
       const imageUrl = await uploadToS3(req.file);
@@ -132,6 +140,7 @@ export const updateFood = async (req, res) => {
     }
 
     const updated = await Food.findByIdAndUpdate(id, updateData, { new: true });
+
     res.json({ success: true, data: updated });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

@@ -3,6 +3,7 @@ import userModel from "../models/userModel.js";
 import Stripe from "stripe";
 import { sendOrderStatusUpdate } from "../socket.js";
 import notificationModel from "../models/notificationModel.js";
+import Food from "../models/foodModel.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -11,6 +12,23 @@ const placeOrder = async (req, res) => {
 
   try {
     const { userId, items, amount, address, voucherCode } = req.body;
+    for (const item of items) {
+      const food = await Food.findById(item.foodId);
+      if (!food) {
+        return res.json({
+          success: false,
+          message: `Món với ID ${item.foodId} không tồn tại`,
+        });
+      }
+
+      if (food.stock < item.quantity) {
+        return res.json({
+          success: false,
+          message: `Món "${food.name}" chỉ còn ${food.stock} phần`,
+        });
+      }
+    }
+
     let finalAmount = amount;
     let appliedVoucher = null;
     let coupon = null;
@@ -137,6 +155,11 @@ const verifyOrder = async (req, res) => {
         return res.json({
           success: false,
           message: "Không tìm thấy đơn hàng",
+        });
+      }
+      for (const item of order.items) {
+        await Food.findByIdAndUpdate(item.foodId, {
+          $inc: { stock: -item.quantity },
         });
       }
 

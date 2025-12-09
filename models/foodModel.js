@@ -8,6 +8,7 @@ const foodSchema = new mongoose.Schema(
     image: String,
     categoryId: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
     averageRating: { type: Number, default: 0 },
+    stock: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
