@@ -14,13 +14,11 @@ const placeOrder = async (req, res) => {
     const { userId, items, amount, address, voucherCode } = req.body;
     for (const item of items) {
       const food = await Food.findById(item.foodId);
-      if (!food) {
-        return res.json({
-          success: false,
-          message: `Món với ID ${item.foodId} không tồn tại`,
-        });
-      }
 
+      // ⛔ Nếu không tìm thấy food → nghĩa là item đó là combo → bỏ qua
+      if (!food) continue;
+
+      // ✔ Nếu là food → kiểm tra stock
       if (food.stock < item.quantity) {
         return res.json({
           success: false,
